@@ -1,0 +1,35 @@
+Complete Column Header Reference Guide:
+
+Sheet (I) Simulated Course Sections:
+- 'Course Section ID': Identifier for the course section.
+- 'Course Number': The number assigned to the course.
+- 'Section': The section number of the course.
+- 'Units': The number of units the course is worth.
+- 'Course Type': Indicates whether the course is applied (1) or pure (2) mathematics.
+
+Sheet (J) Classrooms:
+- 'Room Number': Identifier for the classroom.
+- 'Board Type': Indicates the type of board in the classroom; chalkboard (1) or whiteboard (2).
+
+Sheet (K) Time Slots:
+- 'Time Slot ID': Identifier for the time slot.
+- 'Description': Description of the time slot, including the days of the week and time.
+
+Sheet Teacher Preference:
+- 'Teacher ID': Identifier for the teacher.
+- 'Min Sections': Minimum number of sections the teacher is willing to teach.
+- 'Max Sections': Maximum number of sections the teacher is willing to teach.
+- 'Board Pref': Teacher's preference for board type; none (0), whiteboard (1), or chalkboard (2).
+- 'Time Pref': Teacher's time preference; none (0), morning (1), afternoon (2), or evening (3).
+- 'Days Pref': Teacher's preference for days of the week; no preference (0), MWF (1), or TR (2).
+- 'Type Pref': Teacher's preference for the type of mathematics; none (0), pure (1), or applied (2).
+
+Sheet Teacher Satisfaction:
+- 'Teacher ID': Identifier for the teacher (same as in Teacher Preference).
+- 'Min Sections': Minimum number of sections the teacher is satisfied to teach (same as in Teacher Preference).
+- 'Max Sections': Maximum number of sections the teacher is satisfied to teach (same as in Teacher Preference).
+- 'Board Pref': Teacher's satisfaction with the board type (same as in Teacher Preference).
+- 'Time Pref': Teacher's satisfaction with the time of day (same as in Teacher Preference).
+- 'Days Pref': Teacher's satisfaction with the days of the week (same as in Teacher Preference).
+- 'CS1' to 'CS29': These columns represent the teacher's satisfaction rating for each course section. The number corresponds to the 'Course Section ID' from the 'Simulated Course Sections' sheet, where a lower number indicates a higher preference (0 being the most preferred and 5 the least).
+
