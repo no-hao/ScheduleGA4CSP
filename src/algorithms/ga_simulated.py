@@ -29,11 +29,16 @@ class Chromosome:
         self.evaluate_fitness()
 
     def initialize_randomly(self):
+        print("Initializing Chromosome Randomly...")
         for section in course_sections:
             room = random.choice(classrooms)
             time_slot = random.choice(time_slots)
             teacher_id = random.choice(list(teacher_preferences.keys()))
             self.genes.append((section, room, time_slot, teacher_id))
+            print(
+                f"Added gene: Course {section['Course Section ID']}, Room {room['Room Number']}, Time Slot {time_slot['Time Slot ID']}, Teacher {teacher_id}"
+            )
+        print("Chromosome Initialized\n")
 
     def __str__(self):
         gene_str = "\n".join(
@@ -46,6 +51,7 @@ class Chromosome:
         return f"Chromosome (Fitness: {self.fitness}):\n{gene_str}"
 
     def evaluate_fitness(self):
+        print("Evaluating Fitness...")
         self.fitness = 100
         mw_count, tr_count = 0, 0
         course_assignments = set()
@@ -63,10 +69,11 @@ class Chromosome:
             elif "TR" in time_slot["Description"]:
                 tr_count += 1
 
-            # Ensure each course is only assigned once
+            # Check for duplicate course assignment
             course_id = course["Course Section ID"]
             if course_id in course_assignments:
-                self.fitness -= 100  # High penalty for duplicate course assignment
+                self.fitness -= 10  # Reduced penalty
+                print(f"Duplicate Assignment Detected for Course {course_id}")
             else:
                 course_assignments.add(course_id)
 
@@ -81,6 +88,7 @@ class Chromosome:
         # Balance between MWF and TTh courses
         balance_delta = abs(mw_count - tr_count)
         self.fitness -= balance_delta  # Penalty based on imbalance
+        print(f"Fitness Evaluated: {self.fitness}\n")
 
     def evaluate_teacher_preferences(self, teacher_id, course, room, time_slot):
         preferences = teacher_preferences[teacher_id]
@@ -165,18 +173,22 @@ class GeneticAlgorithm:
 
     def run(self, generations):
         for generation in range(generations):
-            print(f"Generation: {generation + 1}")
+            print(f"Starting Generation: {generation + 1}")
             new_population = []
             while len(new_population) < len(self.population):
+                print(f"Creating New Chromosome in Generation {generation + 1}")
                 parents = self.selection()
                 child = self.crossover(parents[0], parents[1])
                 self.mutation(child)
                 if child.is_valid():
                     new_population.append(child)
+                else:
+                    print("Invalid Chromosome Discarded")
             self.population = new_population
-            print(f"Completed Generation: {generation + 1}")
+            print(f"Completed Generation: {generation + 1}\n")
 
 
 # Test run with reduced population size and generations
+print("Starting Genetic Algorithm Test Run")
 test_ga = GeneticAlgorithm(population_size=10)
 test_ga.run(generations=10)
