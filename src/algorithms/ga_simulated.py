@@ -30,14 +30,30 @@ class Chromosome:
 
     def initialize_randomly(self):
         assigned_slots = set()
+        teacher_assignments = {teacher_id: 0 for teacher_id in teacher_preferences}
+
         for section in course_sections:
             room = random.choice(classrooms)
             time_slot = random.choice(time_slots)
+
+            # Avoid slot collisions
             while (room["Room Number"], time_slot["Time Slot ID"]) in assigned_slots:
                 room = random.choice(classrooms)
                 time_slot = random.choice(time_slots)
+
+            # Select a teacher who hasn't exceeded their max sections
+            eligible_teachers = [
+                tid
+                for tid, count in teacher_assignments.items()
+                if count < teacher_preferences[tid]["Max Sections"]
+            ]
+            if not eligible_teachers:  # Fallback if all exceed max
+                eligible_teachers = list(teacher_preferences.keys())
+
+            teacher_id = random.choice(eligible_teachers)
+            teacher_assignments[teacher_id] += 1
+
             assigned_slots.add((room["Room Number"], time_slot["Time Slot ID"]))
-            teacher_id = random.choice(list(teacher_preferences.keys()))
             self.genes.append((section, room, time_slot, teacher_id))
 
         print("Chromosome Initialized with fewer duplicates\n")
@@ -246,4 +262,4 @@ class GeneticAlgorithm:
 # Test run with reduced population size and generations
 print("Starting Genetic Algorithm Test Run")
 test_ga = GeneticAlgorithm(population_size=10)
-test_ga.run(generations=10)
+test_ga.run(generations=100)
