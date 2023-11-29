@@ -29,16 +29,18 @@ class Chromosome:
         self.evaluate_fitness()
 
     def initialize_randomly(self):
-        print("Initializing Chromosome Randomly...")
+        assigned_slots = set()
         for section in course_sections:
             room = random.choice(classrooms)
             time_slot = random.choice(time_slots)
+            while (room["Room Number"], time_slot["Time Slot ID"]) in assigned_slots:
+                room = random.choice(classrooms)
+                time_slot = random.choice(time_slots)
+            assigned_slots.add((room["Room Number"], time_slot["Time Slot ID"]))
             teacher_id = random.choice(list(teacher_preferences.keys()))
             self.genes.append((section, room, time_slot, teacher_id))
-            print(
-                f"Added gene: Course {section['Course Section ID']}, Room {room['Room Number']}, Time Slot {time_slot['Time Slot ID']}, Teacher {teacher_id}"
-            )
-        print("Chromosome Initialized\n")
+
+        print("Chromosome Initialized with fewer duplicates\n")
 
     def __str__(self):
         gene_str = "\n".join(
@@ -52,7 +54,7 @@ class Chromosome:
 
     def evaluate_fitness(self):
         print("Evaluating Fitness...")
-        self.fitness = 100
+        self.fitness = 0  # Start with a neutral fitness
         mw_count, tr_count = 0, 0
         course_assignments = set()
 
@@ -72,7 +74,7 @@ class Chromosome:
             # Check for duplicate course assignment
             course_id = course["Course Section ID"]
             if course_id in course_assignments:
-                self.fitness -= 10  # Reduced penalty
+                self.fitness -= 5  # Reduced penalty for duplicate assignment
                 print(f"Duplicate Assignment Detected for Course {course_id}")
             else:
                 course_assignments.add(course_id)
@@ -81,13 +83,17 @@ class Chromosome:
             teacher_score = self.evaluate_teacher_preferences(
                 teacher_id, course, room, time_slot
             )
-            self.fitness -= (
-                teacher_score
-            )  # Lower score is better, so subtract from fitness
+            # Reward for matching preference (increased reward)
+            self.fitness += (
+                5 - teacher_score
+            ) * 2  # Increase the reward for preference matching
 
-        # Balance between MWF and TTh courses
+        # Balance between MWF and TTh courses (less penalty)
         balance_delta = abs(mw_count - tr_count)
-        self.fitness -= balance_delta  # Penalty based on imbalance
+        self.fitness -= balance_delta  # Reduce the penalty for imbalance
+
+        # Set a floor for fitness
+        self.fitness = max(0, self.fitness)  # Ensure fitness is not negative
         print(f"Fitness Evaluated: {self.fitness}\n")
 
     def evaluate_teacher_preferences(self, teacher_id, course, room, time_slot):
@@ -148,45 +154,94 @@ class GeneticAlgorithm:
     def __init__(self, population_size):
         self.population = [Chromosome() for _ in range(population_size)]
 
+    # TODO: # Implement a more advanced selection strategy
+    # Example: Rank-based selection or Roulette wheel selection
     def selection(self):
-        return random.sample(self.population, 2)
+        # Implement a more sophisticated selection method
+        # Example: Tournament selection
+        tournament_size = 5
+        tournament = random.sample(self.population, tournament_size)
+        parent1 = max(tournament, key=lambda c: c.fitness)
+        tournament.remove(parent1)
+        parent2 = max(tournament, key=lambda c: c.fitness)
+        print(f"Selected parents: {parent1.fitness}, {parent2.fitness}")
+        return parent1, parent2
 
+    # TODO: Modify the crossover and mutation methods to be more constraint-aware
     def crossover(self, parent1, parent2):
-        child_genes = []
-        for i in range(len(parent1.genes)):
-            if random.random() < 0.5:
-                child_genes.append(parent1.genes[i])
-            else:
-                child_genes.append(parent2.genes[i])
         child = Chromosome()
-        child.genes = child_genes
+        child.genes = []
+        assigned_slots = set()
+
+        for i in range(len(parent1.genes)):
+            # Choose a gene from one of the parents
+            gene = parent1.genes[i] if random.random() < 0.5 else parent2.genes[i]
+
+            # Check for duplicate assignments
+            while (gene[1]["Room Number"], gene[2]["Time Slot ID"]) in assigned_slots:
+                gene = (
+                    gene[0],
+                    random.choice(classrooms),
+                    random.choice(time_slots),
+                    gene[3],
+                )
+
+            assigned_slots.add((gene[1]["Room Number"], gene[2]["Time Slot ID"]))
+            child.genes.append(gene)
+
         child.evaluate_fitness()
+        print("Crossover result:", child)
         return child
 
     def mutation(self, chromosome):
-        idx1, idx2 = random.sample(range(len(chromosome.genes)), 2)
-        chromosome.genes[idx1], chromosome.genes[idx2] = (
-            chromosome.genes[idx2],
-            chromosome.genes[idx1],
-        )
+        idx = random.randint(0, len(chromosome.genes) - 1)
+        gene = chromosome.genes[idx]
+
+        # Mutate either room or time slot
+        if random.random() < 0.5:
+            new_room = random.choice(classrooms)
+            gene = (gene[0], new_room, gene[2], gene[3])
+        else:
+            new_time_slot = random.choice(time_slots)
+            gene = (gene[0], gene[1], new_time_slot, gene[3])
+
+        chromosome.genes[idx] = gene
         chromosome.evaluate_fitness()
+        print("Mutation result:", chromosome)
 
     def run(self, generations):
         for generation in range(generations):
             print(f"Starting Generation: {generation + 1}")
             new_population = []
+
+            # Keep some of the best chromosomes from the current generation
+            best_chromosomes = sorted(
+                self.population, key=lambda c: c.fitness, reverse=True
+            )[:2]
+            new_population.extend(best_chromosomes)
+
             while len(new_population) < len(self.population):
-                print(f"Creating New Chromosome in Generation {generation + 1}")
                 parents = self.selection()
                 child = self.crossover(parents[0], parents[1])
                 self.mutation(child)
-                if child.is_valid():
-                    new_population.append(child)
-                else:
-                    print("Invalid Chromosome Discarded")
-            self.population = new_population
-            print(f"Completed Generation: {generation + 1}\n")
 
+                # Instead of discarding, set minimum fitness to 0
+                if child.fitness < 0:
+                    child.fitness = 0
+
+                new_population.append(child)
+
+            self.population = sorted(
+                new_population, key=lambda c: c.fitness, reverse=True
+            )
+            print(
+                f"Best Chromosome Fitness in Generation {generation + 1}: {self.population[0].fitness}"
+            )
+            print(f"Completed Generation: {generation + 1}")
+            # Optionally, you could add some logic to print the best chromosome of the generation
+
+
+# TODO: Add detailed logging at various steps to analyze the behavior
 
 # Test run with reduced population size and generations
 print("Starting Genetic Algorithm Test Run")
