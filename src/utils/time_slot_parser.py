@@ -4,64 +4,65 @@ import pandas as pd
 class TimeSlotParser:
     @staticmethod
     def to_string(parsed_slots):
-        # Creates a string representation of the parsed time slots
+        # Converts a list of parsed time slots into a single string, separated by newlines.
         return "\n".join(parsed_slots)
 
     @staticmethod
     def normalize_time_str(time_str):
-        # Normalize time string to include minutes and AM/PM if necessary
+        # Normalizes a time string to ensure it includes minutes and AM/PM.
+        # This is especially useful for time formats that only specify the hour.
         if "am" not in time_str and "pm" not in time_str:
-            if "-" in time_str:  # if it's a range
+            if "-" in time_str:  # Checks if it's a time range.
                 start, end = time_str.split("-")
-                start = start.strip()
-                end = end.strip()
-                # Add ":00" if hour doesn't have minutes
+                start, end = start.strip(), end.strip()
+                # Append ":00" to indicate minutes if they are missing.
                 start += ":00" if ":" not in start else ""
                 end += ":00" if ":" not in end else ""
-                # Determine if start or end times are in the PM and if so, convert
+                # Add "pm" to the end time if necessary, based on 12-hour format rules.
                 if int(start.split(":")[0]) < int(end.split(":")[0]):
                     end += "pm"
                 return f"{start} - {end}"
             else:
+                # Append ":00" for single time instances lacking minutes.
                 time_str += ":00"
         return time_str
 
     @staticmethod
     def convert_to_24h(time_str):
-        # Convert AM/PM to 24-hour format
+        # Converts time strings from 12-hour (AM/PM) format to 24-hour format.
+        # Utilizes pandas' to_datetime for conversion and handles exceptions.
         try:
             return pd.to_datetime(time_str, format="%I:%M%p").strftime("%H:%M")
         except ValueError:
-            # Already in 24-hour format
+            # Handles cases where the time is already in 24-hour format.
             return pd.to_datetime(time_str, format="%H:%M").strftime("%H:%M")
 
     @staticmethod
     def create_time_slots(start, end):
-        # Generate a range of datetime objects every 15 minutes
+        # Generates a list of time slots in 24-hour format, in 15-minute intervals.
+        # Utilizes pandas' date_range for generating a range of datetime objects.
         start_dt = pd.to_datetime(start, format="%H:%M")
         end_dt = pd.to_datetime(end, format="%H:%M")
         slots = pd.date_range(start=start_dt, end=end_dt, freq="15T")
+        # Formats each datetime object into a string.
         return [slot.strftime("%H:%M") for slot in slots]
 
     @staticmethod
     def parse_time_slot(time_description):
-        # Split the days and times
+        # Parses a time slot description into a more structured format.
+        # Splits the description into days and times, then processes each part.
         parts = time_description.split(" ")
-        days = parts[0]  # The day part (e.g., 'MW')
-        times = " ".join(parts[1:])  # The time part (e.g., '1 - 2:15')
+        days = parts[0]  # Extracts the days part (e.g., 'MW').
+        times = " ".join(parts[1:])  # Extracts the time part (e.g., '1 - 2:15').
 
-        # Normalize time strings
+        # Normalizes and splits the time range into start and end times.
         times = TimeSlotParser.normalize_time_str(times)
-
-        # Split the normalized time range into start and end
         start_time, end_time = [t.strip() for t in times.split("-")]
 
-        # Convert to 24-hour format
+        # Converts times to 24-hour format and generates the time slots.
         start_time_24h = TimeSlotParser.convert_to_24h(start_time)
         end_time_24h = TimeSlotParser.convert_to_24h(end_time)
-
-        # Create time slots
         time_slots = TimeSlotParser.create_time_slots(start_time_24h, end_time_24h)
 
-        # Create identifiers for each interval
+        # Creates and returns identifiers for each time interval.
         return [days + slot.replace(":", "") for slot in time_slots]
