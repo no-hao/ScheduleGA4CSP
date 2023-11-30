@@ -32,7 +32,18 @@ class Chromosome:
         return f"Chromosome (Fitness: {self.fitness}):\n{gene_str}"
 
     def is_valid(self):
-        return self.fitness >= 0
+        # Example: Ensure no teacher is assigned more sections than allowed
+        teacher_section_count = {
+            teacher_id: 0 for teacher_id in self.teacher_preferences
+        }
+        for _, _, _, teacher_id in self.genes:
+            teacher_section_count[teacher_id] += 1
+            if (
+                teacher_section_count[teacher_id]
+                > self.teacher_preferences[teacher_id]["Max Sections"]
+            ):
+                return False
+        return True
 
     def initialize_randomly(self):
         assigned_slots = set()
@@ -64,14 +75,78 @@ class Chromosome:
 
         logging.info("Chromosome Initialized")
 
+    def not_meeting_preferences(self, teacher_id, course, room, time_slot):
+        preferences = self.teacher_preferences[teacher_id]
+
+        # Check board preference
+        if (
+            preferences["Board Pref"] != 0
+            and room["Board Type"] != preferences["Board Pref"]
+        ):
+            return True
+
+        # Check time preference
+        if preferences["Time Pref"] != 0:
+            if (
+                preferences["Time Pref"] == 1
+                and "am" not in time_slot["Description"].lower()
+            ):
+                return True
+            elif preferences["Time Pref"] == 2 and (
+                "pm" not in time_slot["Description"].lower()
+                or "11" in time_slot["Description"]
+            ):
+                return True
+            elif (
+                preferences["Time Pref"] == 3
+                and "evening" not in time_slot["Description"].lower()
+            ):
+                return True
+
+        # Check days preference
+        if preferences["Days Pref"] != 0:
+            if preferences["Days Pref"] == 1 and "MWF" not in time_slot["Description"]:
+                return True
+            elif preferences["Days Pref"] == 2 and "TR" not in time_slot["Description"]:
+                return True
+
+        # Check type preference
+        if (
+            preferences["Type Pref"] != 0
+            and course["Course Type"] != preferences["Type Pref"]
+        ):
+            return True
+
+        # If none of the preferences are violated
+        return False
+
+    def improve_schedule(self):
+        # Method for improving the current chromosome instance
+        # For demonstration, let's randomly mutate a gene
+        mutation_index = random.randint(0, len(self.genes) - 1)
+        gene = self.genes[mutation_index]
+        new_time_slot = random.choice(self.time_slots)
+        self.genes[mutation_index] = (gene[0], gene[1], new_time_slot, gene[3])
+
+        # Re-evaluate fitness after improvement
+        self.evaluate_fitness()
+
+        return self
+
     def evaluate_fitness(self):
         logging.info("Evaluating Fitness...")
         self.fitness = 0
         mw_count, tr_count = 0, 0
         course_assignments = set()
 
+        preference_weight = 1  # Example weight for teacher preferences
+        satisfaction_weight = 2  # Example weight for teacher satisfaction
+        deviation_penalty = 20  # Penalty for deviations
+
         for gene in self.genes:
             course, room, time_slot, teacher_id = gene
+
+            # Balance MWF and TR courses
             if (
                 "MW" in time_slot["Description"]
                 or "WF" in time_slot["Description"]
@@ -81,21 +156,37 @@ class Chromosome:
             elif "TR" in time_slot["Description"]:
                 tr_count += 1
 
+            # Check for duplicate course assignments
             course_id = course["Course Section ID"]
             if course_id in course_assignments:
-                self.fitness -= 5
+                self.fitness -= 5  # Penalty for duplicate assignment
                 logging.warning(f"Duplicate Assignment Detected for Course {course_id}")
             else:
                 course_assignments.add(course_id)
 
-            teacher_score = self.evaluate_teacher_preferences(
+            # Evaluate teacher preferences
+            preference_score = self.evaluate_teacher_preferences(
                 teacher_id, course, room, time_slot
             )
-            self.fitness += (5 - teacher_score) * 2
 
+            # Retrieve teacher satisfaction score
+            satisfaction_score = self.teacher_satisfaction[teacher_id][
+                f"CS{course['Course Section ID']}"
+            ]
+
+            # Apply weighted scoring
+            self.fitness += preference_score * preference_weight
+            self.fitness += satisfaction_score * satisfaction_weight
+
+            # Penalize deviations from preferences
+            if self.not_meeting_preferences(teacher_id, course, room, time_slot):
+                self.fitness -= deviation_penalty
+
+        # Balance between MWF and TTh courses
         balance_delta = abs(mw_count - tr_count)
-        self.fitness -= balance_delta
+        self.fitness -= balance_delta  # Penalty for imbalance
 
+        # Ensure fitness is not negative
         self.fitness = max(0, self.fitness)
         logging.info(f"Fitness Evaluated: {self.fitness}")
 
@@ -240,8 +331,9 @@ class GeneticAlgorithm:
                 child = self.crossover(parents[0], parents[1])
                 self.mutation(child)
 
+                # Call improve_schedule on the Chromosome instance
                 if child.fitness < 0:
-                    child.fitness = 0
+                    child = child.improve_schedule()
 
                 new_population.append(child)
 
