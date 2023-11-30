@@ -163,28 +163,34 @@ class Chromosome:
         mw_count, tr_count = 0, 0
         course_assignments = set()
 
-        preference_weight = 1.5  # Example weight for teacher preferences
-        satisfaction_weight = 3  # Example weight for teacher satisfaction
-        deviation_penalty = 25  # Penalty for deviations
+        preference_weight = 2  # Adjusted weight for teacher preferences
+        satisfaction_weight = 2  # Adjusted weight for teacher satisfaction
+        deviation_penalty = 10  # Increased penalty for deviations from preferences
+        balance_penalty_weight = 5  # Adjusted weight for imbalance penalty
 
         for gene in self.genes:
             course, room, time_slot, teacher_id = gene
 
             # Balance MWF and TR courses
             if (
-                "MW" in time_slot["Description"]
-                or "WF" in time_slot["Description"]
-                or "MF" in time_slot["Description"]
+                "M" in time_slot["Description"]
+                or "W" in time_slot["Description"]
+                or "F" in time_slot["Description"]
             ):
                 mw_count += 1
-            elif "TR" in time_slot["Description"]:
+            if "T" in time_slot["Description"] or "R" in time_slot["Description"]:
                 tr_count += 1
+            logging.debug(
+                f"Course {course['Course Section ID']} contributes to MW_count: {mw_count}, TR_count: {tr_count}"
+            )
 
             # Check for duplicate course assignments
             course_id = course["Course Section ID"]
             if course_id in course_assignments:
                 self.fitness -= 5  # Penalty for duplicate assignment
-                logging.warning(f"Duplicate Assignment Detected for Course {course_id}")
+                logging.warning(
+                    f"Duplicate Assignment Detected for Course {course_id}, applying penalty"
+                )
             else:
                 course_assignments.add(course_id)
 
@@ -192,26 +198,34 @@ class Chromosome:
             preference_score = self.evaluate_teacher_preferences(
                 teacher_id, course, room, time_slot
             )
+            logging.debug(
+                f"Teacher preference score for course {course_id}: {preference_score}"
+            )
 
             # Retrieve teacher satisfaction score
             satisfaction_score = self.teacher_satisfaction[teacher_id][
                 f"CS{course['Course Section ID']}"
             ]
+            logging.debug(
+                f"Teacher satisfaction score for course {course_id}: {satisfaction_score}"
+            )
 
-            # Apply weighted scoring
+            # Apply weighted scoring for preferences and satisfaction
             self.fitness += preference_score * preference_weight
             self.fitness += satisfaction_score * satisfaction_weight
 
             # Penalize deviations from preferences
             if self.not_meeting_preferences(teacher_id, course, room, time_slot):
                 self.fitness -= deviation_penalty
+                logging.debug(f"Deviation penalty applied for course {course_id}")
 
-        # Balance between MWF and TTh courses
+        # Calculate and apply the penalty for imbalance between MWF and TTh courses
         balance_delta = abs(mw_count - tr_count)
-        self.fitness -= balance_delta  # Penalty for imbalance
+        self.fitness -= balance_delta * balance_penalty_weight
+        logging.debug(
+            f"Balance penalty applied: MW_count - {mw_count}, TR_count - {tr_count}, Delta - {balance_delta}"
+        )
 
-        # Ensure fitness is not negative
-        self.fitness = max(0, self.fitness)
         logging.info("Fitness evaluation completed. Fitness: " + str(self.fitness))
 
     # Method to evaluate a teacher's preference score
@@ -302,10 +316,8 @@ class GeneticAlgorithm:
 
     # Method for selecting parents from the population
     def selection(self):
-        tournament_size = 5  # Size of the tournament for selection
-        # Select a random sample of chromosomes for the tournament
+        tournament_size = 7  # Increased tournament size for more diversity
         tournament = random.sample(self.population, tournament_size)
-        # Select the two best chromosomes from the tournament
         parent1 = max(tournament, key=lambda c: c.fitness)
         tournament.remove(parent1)
         parent2 = max(tournament, key=lambda c: c.fitness)
@@ -366,6 +378,7 @@ class GeneticAlgorithm:
 
     # Main method to run the genetic algorithm
     def run(self, generations):
+        mutation_probability = 0.2  # Probability of mutation
         for generation in range(generations):
             logging.info(f"Starting Generation: {generation + 1}")
             new_population = []
@@ -380,12 +393,8 @@ class GeneticAlgorithm:
             while len(new_population) < len(self.population):
                 parents = self.selection()
                 child = self.crossover(parents[0], parents[1])
-                self.mutation(child)
-
-                # Improve the schedule if fitness is negative
-                if child.fitness < 0:
-                    child = child.improve_schedule()
-
+                if random.random() < mutation_probability:
+                    self.mutation(child)
                 new_population.append(child)
 
             # Replace the old population with the new one
