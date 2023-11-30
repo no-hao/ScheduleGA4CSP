@@ -13,6 +13,7 @@ class Chromosome:
         teacher_satisfaction,  # A dictionary of teacher satisfaction scores
     ):
         # Initialization of class attributes
+        logging.debug("Initializing new Chromosome instance.")
         self.course_sections = course_sections
         self.classrooms = classrooms
         self.time_slots = time_slots
@@ -24,6 +25,7 @@ class Chromosome:
         # Initialize and evaluate the chromosome
         self.initialize_randomly()
         self.evaluate_fitness()
+        logging.debug("Chromosome initialized with random genes.")
 
     # String representation of the Chromosome object
     def __str__(self):
@@ -49,11 +51,15 @@ class Chromosome:
                 teacher_section_count[teacher_id]
                 > self.teacher_preferences[teacher_id]["Max Sections"]
             ):
+                logging.warning(
+                    f"Chromosome is invalid due to teacher {teacher_id} exceeding max sections."
+                )
                 return False  # Invalid if a teacher exceeds their max section limit
         return True  # Valid if all teachers are within their section limits
 
     # Method to initialize the chromosome with random values
     def initialize_randomly(self):
+        logging.info("Initializing Chromosome Randomly")
         assigned_slots = set()  # Tracks assigned room and time slot combinations
         teacher_assignments = {teacher_id: 0 for teacher_id in self.teacher_preferences}
         logging.info("Initializing Chromosome Randomly")
@@ -84,7 +90,7 @@ class Chromosome:
                 f"Assigned course {section['Course Section ID']} to room {room['Room Number']}, time slot {time_slot['Time Slot ID']}, teacher {teacher_id}"
             )
 
-        logging.info("Chromosome Initialized")
+        logging.debug("Random initialization of chromosome completed.")
 
     # Method to check if a teacher's preferences are not met
     def not_meeting_preferences(self, teacher_id, course, room, time_slot):
@@ -138,6 +144,7 @@ class Chromosome:
     def improve_schedule(self):
         # Randomly mutates a gene to potentially improve the chromosome
         # Method for improving the current chromosome instance
+        logging.debug("Improving chromosome with initial fitness: " + str(self.fitness))
         mutation_index = random.randint(0, len(self.genes) - 1)
         gene = self.genes[mutation_index]
         new_time_slot = random.choice(self.time_slots)
@@ -146,11 +153,12 @@ class Chromosome:
         # Re-evaluate fitness after improvement
         self.evaluate_fitness()
 
+        logging.debug("Post-improvement fitness: " + str(self.fitness))
         return self
 
     # Method to evaluate the fitness of the chromosome
     def evaluate_fitness(self):
-        logging.info("Evaluating Fitness...")
+        logging.debug("Starting fitness evaluation.")
         self.fitness = 0
         mw_count, tr_count = 0, 0
         course_assignments = set()
@@ -204,7 +212,7 @@ class Chromosome:
 
         # Ensure fitness is not negative
         self.fitness = max(0, self.fitness)
-        logging.info(f"Fitness Evaluated: {self.fitness}")
+        logging.info("Fitness evaluation completed. Fitness: " + str(self.fitness))
 
     # Method to evaluate a teacher's preference score
     def evaluate_teacher_preferences(self, teacher_id, course, room, time_slot):
@@ -251,6 +259,9 @@ class Chromosome:
 
         satisfaction_score = satisfaction_scores[f"CS{course['Course Section ID']}"]
 
+        logging.debug(
+            f"Calculated preference score for teacher {teacher_id}: {preference_score}"
+        )
         return preference_score + satisfaction_score
 
 
@@ -265,6 +276,10 @@ class GeneticAlgorithm:
         teacher_satisfaction,  # A dictionary of teacher satisfaction scores
         population_size,  # The size of the population for the genetic algorithm
     ):
+        logging.info(
+            "Initializing Genetic Algorithm with population size: "
+            + str(population_size)
+        )
         # Initialization of class attributes
         self.course_sections = course_sections
         self.classrooms = classrooms
@@ -283,6 +298,7 @@ class GeneticAlgorithm:
             )
             for _ in range(population_size)
         ]
+        logging.debug("Genetic Algorithm initialized.")
 
     # Method for selecting parents from the population
     def selection(self):
@@ -293,12 +309,14 @@ class GeneticAlgorithm:
         parent1 = max(tournament, key=lambda c: c.fitness)
         tournament.remove(parent1)
         parent2 = max(tournament, key=lambda c: c.fitness)
-        logging.info(f"Selected parents: {parent1.fitness}, {parent2.fitness}")
+        logging.debug(
+            f"Parents selected with fitness scores: {parent1.fitness}, {parent2.fitness}"
+        )
         return parent1, parent2
 
     # Method for crossing over two parent chromosomes to create a child
     def crossover(self, parent1, parent2):
-        logging.info("Performing Crossover")
+        logging.debug("Starting crossover for selected parents.")
         child = Chromosome(
             self.course_sections,
             self.classrooms,
@@ -373,6 +391,9 @@ class GeneticAlgorithm:
             # Replace the old population with the new one
             self.population = sorted(
                 new_population, key=lambda c: c.fitness, reverse=True
+            )
+            logging.info(
+                "New population established. Size: " + str(len(self.population))
             )
             logging.info(
                 f"Best Chromosome Fitness in Generation {generation + 1}: {self.population[0].fitness}"
