@@ -6,7 +6,7 @@ from src.utils.data_loader import DataLoader
 def setup_logging():
     logging.basicConfig(
         filename="genetic_algorithm.log",
-        level=logging.INFO,
+        level=logging.DEBUG,
         format="%(asctime)s - %(levelname)s - %(message)s",
     )
 

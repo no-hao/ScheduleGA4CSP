@@ -2,8 +2,15 @@ import random
 import logging
 
 
+# class Chromosome:
+# Description: This class represents a chromosome in the context of the genetic algorithm.
+# It encapsulates all the properties and behaviors specific to a chromosome, such as
+# initializing with given parameters, representing a solution, and calculating fitness.
 class Chromosome:
-    # Constructor for the Chromosome class
+    # def __init__(
+    # Description: This method is responsible for initializing a new instance of the Chromosome class.
+    # It takes course sections, classrooms, time slots, teacher preferences, and teacher satisfaction
+    # as parameters to set up the chromosome.
     def __init__(
         self,
         course_sections,  # A list of course sections
@@ -279,8 +286,14 @@ class Chromosome:
         return preference_score + satisfaction_score
 
 
+# class GeneticAlgorithm:
+# Description: This class represents the genetic algorithm itself. It includes methods for
+# initializing the algorithm, performing selection, crossover, mutation, and running the
+# algorithm to find an optimal or satisfactory solution.
 class GeneticAlgorithm:
-    # Constructor for the GeneticAlgorithm class
+    # def __init__(
+    # Description: This method is responsible for initializing a new instance of the GeneticAlgorithm class.
+    # It sets up the algorithm with necessary parameters such as course sections, classrooms, and time slots.
     def __init__(
         self,
         course_sections,  # A list of course sections
