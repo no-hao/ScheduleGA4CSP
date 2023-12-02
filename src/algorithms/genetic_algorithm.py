@@ -36,15 +36,16 @@ class Chromosome:
 
     # String representation of the Chromosome object
     def __str__(self):
-        # Formatting each gene in the chromosome for display
-        gene_str = "\n".join(
-            [
-                f"Course: {gene[0]['Course Section ID']}, Room: {gene[1]['Room Number']}, "
-                f"Time Slot: {gene[2]['Time Slot ID']}, Teacher: {gene[3]}"
-                for gene in self.genes
-            ]
-        )
-        return f"Chromosome (Fitness: {self.fitness}):\n{gene_str}"
+        output = [f"Chromosome (Fitness: {self.fitness}):\n"]
+        output.append("Course ID | Room | Time Slot | Teacher ID")
+        output.append("----------|------|----------|-----------")
+        for gene in self.genes:
+            course_id = gene[0]["Course Section ID"]
+            room = gene[1]["Room Number"]
+            time_slot = gene[2]["Time Slot ID"]
+            teacher_id = gene[3]
+            output.append(f"{course_id:^10}|{room:^6}|{time_slot:^10}|{teacher_id:^11}")
+        return "\n".join(output)
 
     # Method to check if the chromosome is valid
     def is_valid(self):
@@ -65,19 +66,23 @@ class Chromosome:
         return True  # Valid if all teachers are within their section limits
 
     # Method to initialize the chromosome with random values
+
     def initialize_randomly(self):
         logging.info("Initializing Chromosome Randomly")
-        assigned_slots = set()  # Tracks assigned room and time slot combinations
+        assigned_slots = set()
         teacher_assignments = {teacher_id: 0 for teacher_id in self.teacher_preferences}
-        logging.info("Initializing Chromosome Randomly")
+
+        # Create a list of all possible room-time slot combinations
+        all_combinations = [
+            (room, time_slot)
+            for room in self.classrooms
+            for time_slot in self.time_slots
+        ]
+        random.shuffle(all_combinations)  # Shuffle to ensure a unique distribution
 
         for section in self.course_sections:
-            # Randomly select a room and time slot, ensuring no double-booking
-            room = random.choice(self.classrooms)
-            time_slot = random.choice(self.time_slots)
-            while (room["Room Number"], time_slot["Time Slot ID"]) in assigned_slots:
-                room = random.choice(self.classrooms)
-                time_slot = random.choice(self.time_slots)
+            # Pop a random combination to ensure unique assignment
+            room, time_slot = all_combinations.pop()
 
             # Choosing an eligible teacher for the course section
             eligible_teachers = [
@@ -87,15 +92,29 @@ class Chromosome:
             ]
             if not eligible_teachers:
                 eligible_teachers = list(self.teacher_preferences.keys())
-            teacher_id = random.choice(eligible_teachers)
+
+            # Consider teacher satisfaction in eligibility
+            teacher_satisfaction_weights = {
+                tid: 1
+                / (
+                    1
+                    + self.teacher_satisfaction[tid][
+                        f"CS{section['Course Section ID']}"
+                    ]
+                )
+                for tid in eligible_teachers
+            }
+            # Choose a teacher based on weighted satisfaction
+            teacher_id = random.choices(
+                eligible_teachers,
+                weights=list(teacher_satisfaction_weights.values()),  # Convert to list
+                k=1,
+            )[0]
             teacher_assignments[teacher_id] += 1
 
             # Add the chosen combination to the chromosome
             assigned_slots.add((room["Room Number"], time_slot["Time Slot ID"]))
             self.genes.append((section, room, time_slot, teacher_id))
-            logging.debug(
-                f"Assigned course {section['Course Section ID']} to room {room['Room Number']}, time slot {time_slot['Time Slot ID']}, teacher {teacher_id}"
-            )
 
         logging.debug("Random initialization of chromosome completed.")
 
@@ -389,9 +408,33 @@ class GeneticAlgorithm:
         chromosome.evaluate_fitness()
         logging.info("Mutation result: " + str(chromosome))
 
+    def compute_summary_statistics(self):
+        stats = {
+            "total_courses": len(self.course_sections),
+            "distribution": {"MWF": 0, "TR": 0},
+            "teacher_preference_adherence": 0,
+            "teacher_satisfaction": 0,
+        }
+        for chromosome in self.population:
+            for gene in chromosome.genes:
+                time_slot = gene[2]["Description"]
+                teacher_id = gene[3]
+                stats["distribution"][
+                    "MWF" if any(d in time_slot for d in ["M", "W", "F"]) else "TR"
+                ] += 1
+                if not chromosome.not_meeting_preferences(teacher_id, *gene[:3]):
+                    stats["teacher_preference_adherence"] += 1
+                stats["teacher_satisfaction"] += self.teacher_satisfaction[teacher_id][
+                    f"CS{gene[0]['Course Section ID']}"
+                ]
+
+        stats["teacher_preference_adherence"] /= len(self.population[0].genes)
+        stats["teacher_satisfaction"] /= len(self.population[0].genes)
+        return stats
+
     # Main method to run the genetic algorithm
     def run(self, generations):
-        mutation_probability = 0.2  # Probability of mutation
+        mutation_probability = 0.7  # Probability of mutation
         for generation in range(generations):
             logging.info(f"Starting Generation: {generation + 1}")
             new_population = []
@@ -421,3 +464,5 @@ class GeneticAlgorithm:
                 f"Best Chromosome Fitness in Generation {generation + 1}: {self.population[0].fitness}"
             )
             logging.info(f"Completed Generation: {generation + 1}")
+            summary_stats = self.compute_summary_statistics()
+            print("Summary Statistics:", summary_stats)
