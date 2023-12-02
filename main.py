@@ -33,6 +33,11 @@ def main():
     teacher_preferences = teacher_preferences_df.set_index("Teacher ID").T.to_dict()
     teacher_satisfaction = teacher_satisfaction_df.set_index("Teacher ID").T.to_dict()
 
+    # Create a dictionary for time slot details
+    time_slot_details = {
+        slot["Time Slot ID"]: slot["Description"] for slot in time_slots
+    }
+
     # Initialize and run the genetic algorithm
     ga = GeneticAlgorithm(
         course_sections,
@@ -46,7 +51,7 @@ def main():
 
     # Export the best chromosome to an Excel file
     best_chromosome = ga.population[0]  # Assuming this is your best chromosome
-    export_to_excel(best_chromosome, "data/final_schedule.xlsx")
+    export_to_excel(best_chromosome, time_slot_details, "data/final_schedule.xlsx")
 
     logging.info("Application Finished")
 
