@@ -1,6 +1,36 @@
 import pandas as pd
 
 
+def export_summary_statistics(statistics, output_file_path="summary_statistics.xlsx"):
+    """
+    Exports summary statistics to an Excel file.
+
+    :param statistics: A list of dictionaries containing summary statistics for each generation.
+    :param output_file_path: The path where the Excel file will be saved.
+    """
+    # Convert the statistics to a DataFrame for easy export to Excel
+    df = pd.DataFrame(statistics)
+
+    # Calculating distribution as a string for each generation
+    df["distribution"] = df["distribution"].apply(
+        lambda d: f"MWF: {d['MWF']}, TR: {d['TR']}"
+    )
+
+    # Reordering columns as per the specified format
+    df = df[
+        [
+            "generation",
+            "total_courses",
+            "distribution",
+            "teacher_preference_adherence",
+            "teacher_satisfaction",
+        ]
+    ]
+
+    # Writing to an Excel file
+    df.to_excel(output_file_path, index=False)
+
+
 def export_to_excel(
     best_chromosome, time_slots_details, output_file_path="data/final_schedule.xlsx"
 ):

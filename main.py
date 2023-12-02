@@ -1,6 +1,6 @@
 import logging
 from src.utils.data_loader import DataLoader
-from src.utils.export_to_excel import export_to_excel
+from src.utils.export_to_excel import export_to_excel, export_summary_statistics
 from src.algorithms.genetic_algorithm import GeneticAlgorithm
 
 
@@ -38,7 +38,7 @@ def main():
         slot["Time Slot ID"]: slot["Description"] for slot in time_slots
     }
 
-    # Initialize and run the genetic algorithm
+    # Initialize the genetic algorithm
     ga = GeneticAlgorithm(
         course_sections,
         classrooms,
@@ -47,11 +47,17 @@ def main():
         teacher_satisfaction,
         population_size=10,
     )
-    ga.run(generations=100)
+
+    # Running the genetic algorithm and getting statistics for each generation
+    generation_statistics = ga.run(generations=100)
 
     # Export the best chromosome to an Excel file
     best_chromosome = ga.population[0]  # Assuming this is your best chromosome
     export_to_excel(best_chromosome, time_slot_details, "data/final_schedule.xlsx")
+
+    # Export summary statistics to an Excel file
+    export_summary_statistics(generation_statistics, "data/summary_statistics.xlsx")
+    logging.info("Summary statistics exported to data/summary_statistics.xlsx")
 
     logging.info("Application Finished")
 

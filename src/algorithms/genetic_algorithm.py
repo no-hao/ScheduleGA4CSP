@@ -432,9 +432,10 @@ class GeneticAlgorithm:
         stats["teacher_satisfaction"] /= len(self.population[0].genes)
         return stats
 
-    # Main method to run the genetic algorithm
     def run(self, generations):
         mutation_probability = 0.7  # Probability of mutation
+        all_generation_statistics = []  # List to store statistics for each generation
+
         for generation in range(generations):
             logging.info(f"Starting Generation: {generation + 1}")
             new_population = []
@@ -457,12 +458,12 @@ class GeneticAlgorithm:
             self.population = sorted(
                 new_population, key=lambda c: c.fitness, reverse=True
             )
-            logging.info(
-                "New population established. Size: " + str(len(self.population))
-            )
-            logging.info(
-                f"Best Chromosome Fitness in Generation {generation + 1}: {self.population[0].fitness}"
-            )
-            logging.info(f"Completed Generation: {generation + 1}")
+
+            # Compute and collect summary statistics for this generation
             summary_stats = self.compute_summary_statistics()
-            print("Summary Statistics:", summary_stats)
+            summary_stats["generation"] = generation + 1  # Add generation number
+            all_generation_statistics.append(summary_stats)
+
+            logging.info(f"Completed Generation: {generation + 1}")
+
+        return all_generation_statistics  # Return the statistics for all generations
