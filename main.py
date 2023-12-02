@@ -1,6 +1,7 @@
 import logging
-from src.algorithms.genetic_algorithm import GeneticAlgorithm
 from src.utils.data_loader import DataLoader
+from src.utils.export_to_excel import export_to_excel
+from src.algorithms.genetic_algorithm import GeneticAlgorithm
 
 
 def setup_logging():
@@ -42,6 +43,10 @@ def main():
         population_size=10,
     )
     ga.run(generations=100)
+
+    # Export the best chromosome to an Excel file
+    best_chromosome = ga.population[0]  # Assuming this is your best chromosome
+    export_to_excel(best_chromosome, "data/final_schedule.xlsx")
 
     logging.info("Application Finished")
 
