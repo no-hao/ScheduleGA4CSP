@@ -15,6 +15,8 @@ def setup_logging():
 def main():
     setup_logging()
     logging.info("Application Started")
+    population_amount = int(input("Enter the population amount: "))
+    generation_amount = int(input("Enter the generation amount: "))
 
     # Create an instance of DataLoader
     data_loader = DataLoader("Simulated_Data.xlsx")
@@ -45,11 +47,11 @@ def main():
         time_slots,
         teacher_preferences,
         teacher_satisfaction,
-        population_size=10,
+        population_size=population_amount,
     )
 
     # Running the genetic algorithm and getting statistics for each generation
-    generation_statistics = ga.run(generations=100)
+    generation_statistics = ga.run(generations=generation_amount)
 
     # Export the best chromosome to an Excel file
     best_chromosome = ga.population[0]  # Assuming this is your best chromosome
