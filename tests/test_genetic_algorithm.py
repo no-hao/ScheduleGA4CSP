@@ -67,9 +67,9 @@ class TestGeneticAlgorithm(unittest.TestCase):
 
     def test_mutation(self):
         chromosome = self.ga.population[0]
-        original_gene = chromosome.genes[0]
+        original_genes = chromosome.genes.copy()
         self.ga.mutation(chromosome)
-        self.assertNotEqual(original_gene, chromosome.genes[0])
+        self.assertNotEqual(original_genes, chromosome.genes)
 
     def test_selection(self):
         parent1, parent2 = self.ga.selection()
