@@ -88,9 +88,6 @@ def main():
     # Export the best chromosome to an Excel file
     best_chromosome = ga.population[0]  # Assuming this is your best chromosome
 
-    # days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
-    # visualize_schedule(best_chromosome, time_slot_details, days_of_week, "data/final_schedule.png")
-
     export_to_excel(best_chromosome, time_slot_details, "data/final_schedule.xlsx")
 
     # Export summary statistics to an Excel file
