@@ -34,7 +34,6 @@ def export_summary_statistics(statistics, output_file_path="summary_statistics.x
     :param statistics: A list of dictionaries containing summary statistics for each generation.
     :param output_file_path: The path where the Excel file will be saved.
     """
-    print("Starting export of summary statistics...")
     try:
         # Convert the statistics to a DataFrame for easy export to Excel
         df = pd.DataFrame(statistics)
@@ -77,7 +76,6 @@ def export_to_excel(
     :param time_slots_details: Dictionary or similar structure containing the details of the time slots.
     :param output_file_path: The path where the Excel file will be saved.
     """
-    print("Starting export of the final schedule...")
     try:
         data = []
         for gene in best_chromosome.genes:

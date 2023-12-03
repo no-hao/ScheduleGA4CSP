@@ -1,7 +1,13 @@
+import sys
+import time
 import logging
+import threading
 from src.utils.data_loader import DataLoader
-from src.utils.export_to_excel import export_to_excel, export_summary_statistics
 from src.algorithms.genetic_algorithm import GeneticAlgorithm
+from src.utils.export_to_excel import export_to_excel, export_summary_statistics
+
+# Global flag to control the animation thread
+stop_animation = False
 
 
 def setup_logging():
@@ -12,16 +18,34 @@ def setup_logging():
     )
 
 
+def animated_loading():
+    global stop_animation
+    chars = "/—\\|"
+    while not stop_animation:
+        for char in chars:
+            sys.stdout.write("\r" + "Processing data..." + char)
+            time.sleep(0.1)
+            sys.stdout.flush()
+
+
+def clear_loading_line():
+    sys.stdout.write("\r" + " " * 50 + "\r")  # Clear the line
+    sys.stdout.flush()
+
+
 def main():
+    global stop_animation
     setup_logging()
     logging.info("Application Started")
-    population_amount = int(input("Enter the population amount: "))
-    generation_amount = int(input("Enter the generation amount: "))
+    pop_size = int(input("Enter the population size: "))
+    gen_size = int(input("Enter the generation size: "))
 
-    # Create an instance of DataLoader
+    # Start loading animation
+    t = threading.Thread(target=animated_loading)
+    t.start()
+
+    # Data loading and processing
     data_loader = DataLoader("Simulated_Data.xlsx")
-
-    # Load and preprocess data using DataLoader methods
     course_sections_df = data_loader.load_sheet("(I) Simulated Course Sections")
     classrooms_df = data_loader.load_sheet("(J) Classrooms")
     time_slots_df = data_loader.load_sheet("(K) Time Slots")
@@ -47,11 +71,18 @@ def main():
         time_slots,
         teacher_preferences,
         teacher_satisfaction,
-        population_size=population_amount,
+        population_size=pop_size,
     )
 
     # Running the genetic algorithm and getting statistics for each generation
-    generation_statistics = ga.run(generations=generation_amount)
+    generation_statistics = ga.run(generations=gen_size)
+
+    # Stop the animation
+    stop_animation = True
+    t.join()
+
+    # Clear the loading line
+    clear_loading_line()
 
     # Export the best chromosome to an Excel file
     best_chromosome = ga.population[0]  # Assuming this is your best chromosome
