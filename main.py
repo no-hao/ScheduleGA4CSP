@@ -5,6 +5,7 @@ import threading
 from src.utils.data_loader import DataLoader
 from src.algorithms.genetic_algorithm import GeneticAlgorithm
 from src.utils.export_to_excel import export_to_excel, export_summary_statistics
+# from src.utils.schedule_visualization import visualize_schedule
 
 # Global flag to control the animation thread
 stop_animation = False
@@ -86,6 +87,10 @@ def main():
 
     # Export the best chromosome to an Excel file
     best_chromosome = ga.population[0]  # Assuming this is your best chromosome
+
+    # days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+    # visualize_schedule(best_chromosome, time_slot_details, days_of_week, "data/final_schedule.png")
+
     export_to_excel(best_chromosome, time_slot_details, "data/final_schedule.xlsx")
 
     # Export summary statistics to an Excel file
