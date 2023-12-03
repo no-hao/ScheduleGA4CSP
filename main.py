@@ -2,10 +2,10 @@ import sys
 import time
 import logging
 import threading
+from src.utils.visualizer import visualize_room_occupancy
 from src.utils.data_loader import DataLoader
 from src.algorithms.genetic_algorithm import GeneticAlgorithm
 from src.utils.export_to_excel import export_to_excel, export_summary_statistics
-# from src.utils.schedule_visualization import visualize_schedule
 
 # Global flag to control the animation thread
 stop_animation = False
@@ -87,12 +87,16 @@ def main():
 
     # Export the best chromosome to an Excel file
     best_chromosome = ga.population[0]  # Assuming this is your best chromosome
-
-    export_to_excel(best_chromosome, time_slot_details, "data/final_schedule.xlsx")
+    final_schedule_file = "data/final_schedule.xlsx"
+    export_to_excel(best_chromosome, time_slot_details, final_schedule_file)
 
     # Export summary statistics to an Excel file
     export_summary_statistics(generation_statistics, "data/summary_statistics.xlsx")
     logging.info("Summary statistics exported to data/summary_statistics.xlsx")
+
+    # Visualize the schedule
+    visualize_room_occupancy("data/final_schedule.xlsx")
+    logging.info("Schedule visualization completed")
 
     logging.info("Application Finished")
 
