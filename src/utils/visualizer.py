@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 from datetime import datetime
 import matplotlib.pyplot as plt
@@ -12,6 +11,8 @@ def visualize_room_occupancy(schedule_file_path):
 
     # Function to fix time slots missing 'am'/'pm' designations and to parse them
     def fix_and_parse_time_slot(time_slot):
+        if pd.isna(time_slot):
+            return [None, None, None]
         parts = time_slot.split(" - ")
         if len(parts) == 2:
             day_time, end_time = parts
@@ -26,6 +27,8 @@ def visualize_room_occupancy(schedule_file_path):
         return [None, None, None]
 
     def convert_to_24h(time_str):
+        if time_str is None:
+            return None
         if ":" not in time_str:
             time_str += ":00"
         if "pm" in time_str.lower():
@@ -48,6 +51,13 @@ def visualize_room_occupancy(schedule_file_path):
     schedule_df["Start Time"] = schedule_df["Start Time"].apply(convert_to_24h)
     schedule_df["End Time"] = schedule_df["End Time"].apply(convert_to_24h)
 
+    # Generate unique colors for each course
+    unique_courses = schedule_df["Course ID"].unique()
+    colors = plt.cm.get_cmap("hsv", len(unique_courses) + 1)  # HSV colormap
+
+    # Map course ID to a color
+    course_color_map = {course: colors(i) for i, course in enumerate(unique_courses)}
+
     def plot_room_schedule(room_schedule, room_number, ax):
         days = ["M", "T", "W", "R", "F"]
         day_to_num = {day: i for i, day in enumerate(days)}
@@ -67,12 +77,14 @@ def visualize_room_occupancy(schedule_file_path):
                     y_start = time_to_datetime(row["Start Time"])
                     y_end = time_to_datetime(row["End Time"])
 
-                    # Draw a rectangle for the time slot
+                    # Use the color mapped to the course ID
+                    course_color = course_color_map[row["Course ID"]]
+
                     rect = plt.Rectangle(
                         (x - 0.4, mdates.date2num(y_start)),
                         0.8,
                         mdates.date2num(y_end) - mdates.date2num(y_start),
-                        color=np.random.rand(3),
+                        color=course_color,
                         alpha=0.5,
                     )
                     ax.add_patch(rect)
@@ -87,11 +99,9 @@ def visualize_room_occupancy(schedule_file_path):
     # Create a PDF file
     with PdfPages("room_schedules.pdf") as pdf:
         for room in sorted(unique_rooms):
-            # Create a figure for each room
             fig, ax = plt.subplots(figsize=(12, 6))
             room_schedule = schedule_df[schedule_df["Room"] == room]
             plot_room_schedule(room_schedule, room, ax)
 
-            # Add the figure to the PDF
             pdf.savefig(fig)
             plt.close(fig)
