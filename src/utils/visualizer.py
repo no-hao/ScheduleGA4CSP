@@ -1,8 +1,9 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
+from datetime import datetime
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from datetime import datetime
+from matplotlib.backends.backend_pdf import PdfPages
 
 
 def visualize_room_occupancy(schedule_file_path):
@@ -71,9 +72,7 @@ def visualize_room_occupancy(schedule_file_path):
                         (x - 0.4, mdates.date2num(y_start)),
                         0.8,
                         mdates.date2num(y_end) - mdates.date2num(y_start),
-                        color=np.random.rand(
-                            3,
-                        ),
+                        color=np.random.rand(3),
                         alpha=0.5,
                     )
                     ax.add_patch(rect)
@@ -83,18 +82,16 @@ def visualize_room_occupancy(schedule_file_path):
         ax.set_xticklabels(days)
         ax.set_title(f"Room {room_number} Schedule")
 
-    # Create a figure with a subplot for each room
     unique_rooms = schedule_df["Room"].unique()
-    # Figure variable 'fig' is created for plotting purposes but not directly used
-    fig, axes = plt.subplots(
-        nrows=len(unique_rooms), ncols=1, figsize=(12, 20), constrained_layout=True
-    )
 
-    # Plot schedule for each room
-    for i, room in enumerate(sorted(unique_rooms)):
-        room_schedule = schedule_df[schedule_df["Room"] == room]
-        plot_room_schedule(
-            room_schedule, room, axes[i] if len(unique_rooms) > 1 else axes
-        )
+    # Create a PDF file
+    with PdfPages("room_schedules.pdf") as pdf:
+        for room in sorted(unique_rooms):
+            # Create a figure for each room
+            fig, ax = plt.subplots(figsize=(12, 6))
+            room_schedule = schedule_df[schedule_df["Room"] == room]
+            plot_room_schedule(room_schedule, room, ax)
 
-    plt.show()
+            # Add the figure to the PDF
+            pdf.savefig(fig)
+            plt.close(fig)
