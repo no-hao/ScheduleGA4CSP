@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 import logging
@@ -12,8 +13,20 @@ stop_animation = False
 
 
 def setup_logging():
+    log_file_path = "genetic_algorithm.log"
+    max_log_size = 5 * 1024 * 1024  # 5 MB, for example
+
+    # Check if the log file exists and its size
+    if os.path.exists(log_file_path) and os.path.getsize(log_file_path) > max_log_size:
+        # Option 1: Delete the existing file (uncomment the next line to use this option)
+        os.remove(log_file_path)
+
+        # Option 2: Rename/Archive the existing file
+        # os.rename(log_file_path, log_file_path + ".old")
+
+    # Set up logging as before
     logging.basicConfig(
-        filename="genetic_algorithm.log",
+        filename=log_file_path,
         level=logging.DEBUG,
         format="%(asctime)s - %(levelname)s - %(message)s",
     )
