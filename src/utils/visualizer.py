@@ -10,12 +10,21 @@ def visualize_room_occupancy(schedule_file_path):
     schedule_df = pd.read_excel(schedule_file_path)
 
     # Function to fix time slots missing 'am'/'pm' designations and to parse them
+
     def fix_and_parse_time_slot(time_slot):
         if pd.isna(time_slot):
             return [None, None, None]
         parts = time_slot.split(" - ")
         if len(parts) == 2:
             day_time, end_time = parts
+            # Correctly append ':00' for hour-only times
+            if "am" in day_time or "pm" in day_time:
+                if ":" not in day_time:
+                    day_time = day_time.replace("am", ":00am").replace("pm", ":00pm")
+            if "am" in end_time or "pm" in end_time:
+                if ":" not in end_time:
+                    end_time = end_time.replace("am", ":00am").replace("pm", ":00pm")
+            # Append AM/PM to start time if missing
             if ("am" in end_time or "pm" in end_time) and (
                 "am" not in day_time and "pm" not in day_time
             ):
@@ -29,17 +38,16 @@ def visualize_room_occupancy(schedule_file_path):
     def convert_to_24h(time_str):
         if time_str is None:
             return None
-        if ":" not in time_str:
-            time_str += ":00"
-        if "pm" in time_str.lower():
-            time_str = time_str.lower().replace("pm", "").strip()
-            hours, minutes = map(int, time_str.split(":"))
-            hours += 0 if hours == 12 else 12
+        # Check if the time string contains 'am' or 'pm'
+        if "am" in time_str or "pm" in time_str:
+            # Correctly format the time string for parsing
+            formatted_time_str = time_str
+            if ":" not in time_str:
+                formatted_time_str = time_str[:-2] + ":00" + time_str[-2:]
+            return datetime.strptime(formatted_time_str, "%I:%M%p").strftime("%H:%M")
         else:
-            time_str = time_str.lower().replace("am", "").strip()
-            hours, minutes = map(int, time_str.split(":"))
-            hours = 0 if hours == 12 else hours
-        return f"{hours:02d}:{minutes:02d}"
+            # If no 'am' or 'pm', return the time string as is
+            return time_str
 
     def time_to_datetime(time_str):
         return datetime.strptime(time_str, "%H:%M")
@@ -53,9 +61,7 @@ def visualize_room_occupancy(schedule_file_path):
 
     # Generate unique colors for each course
     unique_courses = schedule_df["Course ID"].unique()
-    colors = plt.cm.get_cmap("hsv", len(unique_courses) + 1)  # HSV colormap
-
-    # Map course ID to a color
+    colors = plt.cm.get_cmap("hsv", len(unique_courses) + 1)
     course_color_map = {course: colors(i) for i, course in enumerate(unique_courses)}
 
     def plot_room_schedule(room_schedule, room_number, ax):
@@ -78,9 +84,7 @@ def visualize_room_occupancy(schedule_file_path):
                         y_start = time_to_datetime(row["Start Time"])
                         y_end = time_to_datetime(row["End Time"])
 
-                        # Use the color mapped to the course ID
                         course_color = course_color_map[row["Course ID"]]
-
                         rect = plt.Rectangle(
                             (x - 0.4, mdates.date2num(y_start)),
                             0.8,
@@ -95,6 +99,23 @@ def visualize_room_occupancy(schedule_file_path):
         ax.set_xticklabels(days)
         ax.set_title(f"Room {room_number} Schedule")
 
+        # Create a legend specific to this room
+        unique_courses_in_room = room_schedule["Course ID"].unique()
+        legend_handles = []
+        legend_labels = []
+        for course in unique_courses_in_room:
+            color = course_color_map[course]
+            teacher_id = room_schedule[room_schedule["Course ID"] == course][
+                "Teacher ID"
+            ].iloc[0]
+            legend_label = f"TID: {teacher_id}\nCS: {course}"
+            legend_handles.append(plt.Rectangle((0, 0), 1, 1, color=color, alpha=0.5))
+            legend_labels.append(legend_label)
+
+        ax.legend(
+            legend_handles, legend_labels, loc="upper left", bbox_to_anchor=(1, 1)
+        )
+
     unique_rooms = schedule_df["Room"].unique()
 
     # Create a PDF file
@@ -108,3 +129,7 @@ def visualize_room_occupancy(schedule_file_path):
             plt.close(fig)
 
     print("Final schedule successfully exported to 'docs/Room_Schedules'.")
+
+
+# Call the function with the path to your schedule file
+# visualize_room_occupancy("path_to_your_file.xlsx")
