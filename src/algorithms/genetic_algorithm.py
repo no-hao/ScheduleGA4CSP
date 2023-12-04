@@ -189,10 +189,10 @@ class Chromosome:
         mw_count, tr_count = 0, 0
         course_assignments = set()
 
-        preference_weight = 2  # Adjusted weight for teacher preferences
+        preference_weight = 3  # Adjusted weight for teacher preferences
         satisfaction_weight = 2  # Adjusted weight for teacher satisfaction
-        deviation_penalty = 10  # Increased penalty for deviations from preferences
-        balance_penalty_weight = 5  # Adjusted weight for imbalance penalty
+        deviation_penalty = 30  # Increased penalty for deviations from preferences
+        balance_penalty_weight = 10  # Adjusted weight for imbalance penalty
 
         for gene in self.genes:
             course, room, time_slot, teacher_id = gene

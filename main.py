@@ -96,7 +96,7 @@ def main():
 
     # Visualize the schedule
     visualize_room_occupancy("data/final_schedule.xlsx")
-    logging.info("Schedule visualization completed")
+    logging.info("A visualized schedule was exported to docs/Room_Schedule.pdf")
 
     logging.info("Application Finished")
 

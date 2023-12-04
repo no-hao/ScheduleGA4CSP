@@ -71,23 +71,24 @@ def visualize_room_occupancy(schedule_file_path):
         ax.set_ylim(start_time, end_time)
 
         for _, row in room_schedule.iterrows():
-            for day in row["Days"]:
-                if day in day_to_num:
-                    x = day_to_num[day]
-                    y_start = time_to_datetime(row["Start Time"])
-                    y_end = time_to_datetime(row["End Time"])
+            if row["Days"] is not None:  # Check if 'Days' is not None
+                for day in row["Days"]:
+                    if day in day_to_num:
+                        x = day_to_num[day]
+                        y_start = time_to_datetime(row["Start Time"])
+                        y_end = time_to_datetime(row["End Time"])
 
-                    # Use the color mapped to the course ID
-                    course_color = course_color_map[row["Course ID"]]
+                        # Use the color mapped to the course ID
+                        course_color = course_color_map[row["Course ID"]]
 
-                    rect = plt.Rectangle(
-                        (x - 0.4, mdates.date2num(y_start)),
-                        0.8,
-                        mdates.date2num(y_end) - mdates.date2num(y_start),
-                        color=course_color,
-                        alpha=0.5,
-                    )
-                    ax.add_patch(rect)
+                        rect = plt.Rectangle(
+                            (x - 0.4, mdates.date2num(y_start)),
+                            0.8,
+                            mdates.date2num(y_end) - mdates.date2num(y_start),
+                            color=course_color,
+                            alpha=0.5,
+                        )
+                        ax.add_patch(rect)
 
         ax.set_xlim(-0.5, len(days) - 0.5)
         ax.set_xticks(range(len(days)))
@@ -97,7 +98,7 @@ def visualize_room_occupancy(schedule_file_path):
     unique_rooms = schedule_df["Room"].unique()
 
     # Create a PDF file
-    with PdfPages("room_schedules.pdf") as pdf:
+    with PdfPages("docs/Room_Schedules.pdf") as pdf:
         for room in sorted(unique_rooms):
             fig, ax = plt.subplots(figsize=(12, 6))
             room_schedule = schedule_df[schedule_df["Room"] == room]
