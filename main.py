@@ -3,8 +3,8 @@ import sys
 import time
 import logging
 import threading
-from src.utils.visualizer import visualize_room_occupancy
 from src.utils.data_loader import DataLoader
+from src.utils.visualizer import visualize_room_occupancy
 from src.algorithms.genetic_algorithm import GeneticAlgorithm
 from src.utils.export_to_excel import export_to_excel, export_summary_statistics
 
