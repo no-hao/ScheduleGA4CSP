@@ -433,7 +433,7 @@ class GeneticAlgorithm:
         return stats
 
     def run(self, generations):
-        mutation_probability = 0.7  # Probability of mutation
+        mutation_probability = 0.2  # Probability of mutation
         all_generation_statistics = []  # List to store statistics for each generation
 
         for generation in range(generations):
