@@ -18,7 +18,7 @@ def setup_logging():
 
     # Check if the log file exists and its size
     if os.path.exists(log_file_path) and os.path.getsize(log_file_path) > max_log_size:
-        # Option 1: Delete the existing file (uncomment the next line to use this option)
+        # Option 1: Delete the existing file
         os.remove(log_file_path)
 
         # Option 2: Rename/Archive the existing file
@@ -34,16 +34,33 @@ def setup_logging():
 
 def animated_loading():
     global stop_animation
-    chars = "/—\\|"
+    animation_width = 28  # Width of the sliding bar animation
+    animation_chars = [
+        "■",
+        "□",
+        "▢",
+        "▣",
+        "▤",
+        "▥",
+        "▦",
+        "▧",
+        "▨",
+        "▩",
+        "▪",
+        "▫",
+    ]  # Unicode block characters
     while not stop_animation:
-        for char in chars:
-            sys.stdout.write("\r" + "Processing data..." + char)
-            time.sleep(0.1)
+        for i in range(animation_width):
+            bar = "".join(animation_chars[i % len(animation_chars)] * (i + 1))
+            sys.stdout.write("\033[K\r" + f"[{bar}]")
             sys.stdout.flush()
+            time.sleep(0.2)
 
 
 def clear_loading_line():
-    sys.stdout.write("\r" + " " * 50 + "\r")  # Clear the line
+    sys.stdout.write(
+        "\r\033[K" + " " * 50 + "\r\033[K"
+    )  # Clear the line and reset cursor position
     sys.stdout.flush()
 
 

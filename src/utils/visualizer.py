@@ -106,3 +106,5 @@ def visualize_room_occupancy(schedule_file_path):
 
             pdf.savefig(fig)
             plt.close(fig)
+
+    print("Final schedule successfully exported to 'docs/Room_Schedules'.")
