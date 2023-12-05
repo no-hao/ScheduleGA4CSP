@@ -19,10 +19,16 @@ class TimeSlotParser:
         return [slot.strftime("%H:%M") for slot in slots[:-1]]
 
     @staticmethod
-    def parse_time_slot(time_description):
-        parts = time_description.split(" ")
-        days = parts[0]
-        times = " ".join(parts[1:])
-        start_time, end_time = [t.strip() for t in times.split("-")]
-        time_slots = TimeSlotParser.create_time_slots(start_time, end_time)
-        return [days + slot.replace(":", "") for slot in time_slots]
+    def parse_time_slots(time_slots_series):
+        """
+        Vectorized function to parse time slots for the entire DataFrame.
+        """
+        # Split the days and times
+        split_slots = time_slots_series.str.extract(
+            r"([MTWRF]+) (\d{2}:\d{2}) - (\d{2}:\d{2})"
+        )
+        days = split_slots[0]
+        start_times = split_slots[1]
+        end_times = split_slots[2]
+
+        return days, start_times, end_times
