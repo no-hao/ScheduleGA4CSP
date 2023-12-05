@@ -27,7 +27,6 @@ def auto_fit_columns(file_path):
     workbook.save(file_path)
 
 
-# TODO: format and add more summary statistics for plotting and report data.
 def export_summary_statistics(statistics, output_file_path="summary_statistics.xlsx"):
     """
     Exports summary statistics to an Excel file.
@@ -44,7 +43,7 @@ def export_summary_statistics(statistics, output_file_path="summary_statistics.x
             lambda d: f"MWF: {d['MWF']}, TR: {d['TR']}"
         )
 
-        # Reordering columns as per the specified format
+        # Reordering columns as per the new format
         df = df[
             [
                 "generation",
@@ -52,13 +51,17 @@ def export_summary_statistics(statistics, output_file_path="summary_statistics.x
                 "distribution",
                 "teacher_preference_adherence",
                 "teacher_satisfaction",
+                "average_fitness",
+                "max_fitness",
+                "preference_violations",
+                "course_assignment_duplicates",
             ]
         ]
 
         # Writing to an Excel file
         df.to_excel(output_file_path, index=False)
 
-        # Auto fit columns
+        # auto_fit_columns widths
         auto_fit_columns(output_file_path)
 
         print(f"Summary statistics successfully exported to '{output_file_path}'.")

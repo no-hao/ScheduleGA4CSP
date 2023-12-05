@@ -393,9 +393,19 @@ class GeneticAlgorithm:
             "distribution": {"MWF": 0, "TR": 0},
             "teacher_preference_adherence": 0,
             "teacher_satisfaction": 0,
+            "average_fitness": 0,
+            "max_fitness": 0,
+            "preference_violations": 0,
+            "course_assignment_duplicates": 0,
         }
 
+        total_fitness = 0
+        max_fitness = -float("inf")
         for chromosome in self.population:
+            total_fitness += chromosome.fitness
+            max_fitness = max(max_fitness, chromosome.fitness)
+
+            duplicate_courses = set()
             for gene in chromosome.genes:
                 # Update course distribution
                 time_slot = gene[2]["Description"]
@@ -412,9 +422,22 @@ class GeneticAlgorithm:
                     f"CS{gene[0]['Course Section ID']}"
                 ]
 
+                # Check for duplicate course assignments
+                course_id = gene[0]["Course Section ID"]
+                if course_id in duplicate_courses:
+                    stats["course_assignment_duplicates"] += 1
+                else:
+                    duplicate_courses.add(course_id)
+
+                # Check for preference violations
+                if chromosome.not_meeting_preferences(teacher_id, *gene[:3]):
+                    stats["preference_violations"] += 1
+
         num_genes = len(self.population[0].genes)
         stats["teacher_preference_adherence"] /= num_genes
         stats["teacher_satisfaction"] /= num_genes
+        stats["average_fitness"] = total_fitness / len(self.population)
+        stats["max_fitness"] = max_fitness
 
         logging.info("Summary statistics computed.")
         return stats
