@@ -27,6 +27,7 @@ def auto_fit_columns(file_path):
     workbook.save(file_path)
 
 
+# TODO: format and add more summary statistics for plotting and report data.
 def export_summary_statistics(statistics, output_file_path="summary_statistics.xlsx"):
     """
     Exports summary statistics to an Excel file.

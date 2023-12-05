@@ -3,61 +3,45 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.backends.backend_pdf import PdfPages
+from src.utils.time_slot_parser import TimeSlotParser
+
+
+def extract_start_end_time(time_slots):
+    if not time_slots:
+        return [None, None, None]
+    try:
+        first_slot = time_slots[0]
+        days = first_slot[:-4]
+        start_time = first_slot[-4:]
+        last_slot = time_slots[-1]
+        end_time = last_slot[-4:]
+
+        start_time_formatted = (
+            f"{start_time[:2]}:{start_time[2:]}" if len(start_time) == 4 else start_time
+        )
+        end_time_formatted = (
+            f"{end_time[:2]}:{end_time[2:]}" if len(end_time) == 4 else end_time
+        )
+
+        return [days, start_time_formatted, end_time_formatted]
+    except ValueError as e:
+        print(e)  # Or log to a file
+        return [None, None, None]  # Skip invalid time slots
 
 
 def visualize_room_occupancy(schedule_file_path):
-    # Load the data
     schedule_df = pd.read_excel(schedule_file_path)
 
-    # Function to fix time slots missing 'am'/'pm' designations and to parse them
-
-    def fix_and_parse_time_slot(time_slot):
-        if pd.isna(time_slot):
-            return [None, None, None]
-        parts = time_slot.split(" - ")
-        if len(parts) == 2:
-            day_time, end_time = parts
-            # Correctly append ':00' for hour-only times
-            if "am" in day_time or "pm" in day_time:
-                if ":" not in day_time:
-                    day_time = day_time.replace("am", ":00am").replace("pm", ":00pm")
-            if "am" in end_time or "pm" in end_time:
-                if ":" not in end_time:
-                    end_time = end_time.replace("am", ":00am").replace("pm", ":00pm")
-            # Append AM/PM to start time if missing
-            if ("am" in end_time or "pm" in end_time) and (
-                "am" not in day_time and "pm" not in day_time
-            ):
-                am_pm = "am" if "am" in end_time else "pm"
-                day_time += am_pm
-            day_time_parts = day_time.split(" ")
-            days, start_time = day_time_parts[0], " ".join(day_time_parts[1:])
-            return days, start_time, end_time
-        return [None, None, None]
-
-    def convert_to_24h(time_str):
-        if time_str is None:
-            return None
-        # Check if the time string contains 'am' or 'pm'
-        if "am" in time_str or "pm" in time_str:
-            # Correctly format the time string for parsing
-            formatted_time_str = time_str
-            if ":" not in time_str:
-                formatted_time_str = time_str[:-2] + ":00" + time_str[-2:]
-            return datetime.strptime(formatted_time_str, "%I:%M%p").strftime("%H:%M")
-        else:
-            # If no 'am' or 'pm', return the time string as is
-            return time_str
-
-    def time_to_datetime(time_str):
-        return datetime.strptime(time_str, "%H:%M")
-
-    # Apply the parsing and fixing functions to the schedule
+    # Process time slots to extract days, start time, and end time
     schedule_df[["Days", "Start Time", "End Time"]] = schedule_df["Time Slot"].apply(
-        lambda x: pd.Series(fix_and_parse_time_slot(x))
+        lambda x: pd.Series(extract_start_end_time(TimeSlotParser.parse_time_slot(x)))
     )
-    schedule_df["Start Time"] = schedule_df["Start Time"].apply(convert_to_24h)
-    schedule_df["End Time"] = schedule_df["End Time"].apply(convert_to_24h)
+
+    # Convert times to datetime objects
+    schedule_df["Start Time"] = pd.to_datetime(
+        schedule_df["Start Time"], format="%H:%M"
+    )
+    schedule_df["End Time"] = pd.to_datetime(schedule_df["End Time"], format="%H:%M")
 
     # Generate unique colors for each course
     unique_courses = schedule_df["Course ID"].unique()
@@ -68,8 +52,8 @@ def visualize_room_occupancy(schedule_file_path):
         days = ["M", "T", "W", "R", "F"]
         day_to_num = {day: i for i, day in enumerate(days)}
 
-        start_time = time_to_datetime("08:00")
-        end_time = time_to_datetime("22:00")
+        start_time = datetime.strptime("08:00", "%H:%M")
+        end_time = datetime.strptime("22:00", "%H:%M")
 
         ax.yaxis_date()
         ax.yaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
@@ -81,8 +65,8 @@ def visualize_room_occupancy(schedule_file_path):
                 for day in row["Days"]:
                     if day in day_to_num:
                         x = day_to_num[day]
-                        y_start = time_to_datetime(row["Start Time"])
-                        y_end = time_to_datetime(row["End Time"])
+                        y_start = row["Start Time"]
+                        y_end = row["End Time"]
 
                         course_color = course_color_map[row["Course ID"]]
                         rect = plt.Rectangle(
@@ -131,5 +115,5 @@ def visualize_room_occupancy(schedule_file_path):
     print("Final schedule successfully exported to 'docs/Room_Schedules'.")
 
 
-# Call the function with the path to your schedule file
-# visualize_room_occupancy("path_to_your_file.xlsx")
+# Example usage
+# visualize_room_occupancy("path_to_your_schedule_file.xlsx")
