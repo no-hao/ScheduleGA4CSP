@@ -320,15 +320,11 @@ class GeneticAlgorithm:
 
     # Method for selecting parents from the population
     def selection(self):
-        tournament_size = 7  # Increased tournament size for more diversity
-        tournament = random.sample(self.population, tournament_size)
-        parent1 = max(tournament, key=lambda c: c.fitness)
-        tournament.remove(parent1)
-        parent2 = max(tournament, key=lambda c: c.fitness)
-        logging.debug(
-            f"Parents selected with fitness scores: {parent1.fitness}, {parent2.fitness}"
-        )
-        return parent1, parent2
+        logging.debug("Selecting parents for crossover.")
+        tournament = random.sample(self.population, 7)  # Tournament selection
+        return sorted(tournament, key=lambda c: c.fitness, reverse=True)[
+            :2
+        ]  # Select top 2
 
     # Method for crossing over two parent chromosomes to create a child
     def crossover(self, parent1, parent2):
@@ -340,26 +336,35 @@ class GeneticAlgorithm:
             self.teacher_preferences,
             self.teacher_satisfaction,
         )
+
+        # Initialize child's genes and a set to track assigned slots
         child.genes = []
         assigned_slots = set()
 
-        for i in range(len(parent1.genes)):
-            # Select a gene from one of the parents
-            gene = parent1.genes[i] if random.random() < 0.5 else parent2.genes[i]
-            # Ensure no double-booking in the child chromosome
-            while (gene[1]["Room Number"], gene[2]["Time Slot ID"]) in assigned_slots:
-                gene = (
-                    gene[0],
+        for gene1, gene2 in zip(parent1.genes, parent2.genes):
+            # Choose a gene from either parent based on a random choice
+            chosen_gene = gene1 if random.random() < 0.5 else gene2
+
+            # Check for double-booking and select new room and time slot if necessary
+            while (
+                chosen_gene[1]["Room Number"],
+                chosen_gene[2]["Time Slot ID"],
+            ) in assigned_slots:
+                chosen_gene = (
+                    chosen_gene[0],
                     random.choice(self.classrooms),
                     random.choice(self.time_slots),
-                    gene[3],
+                    chosen_gene[3],
                 )
 
-            assigned_slots.add((gene[1]["Room Number"], gene[2]["Time Slot ID"]))
-            child.genes.append(gene)
+            # Add the chosen gene to the child and update the assigned slots
+            child.genes.append(chosen_gene)
+            assigned_slots.add(
+                (chosen_gene[1]["Room Number"], chosen_gene[2]["Time Slot ID"])
+            )
 
         child.evaluate_fitness()
-        logging.info("Crossover result: " + str(child))
+        logging.debug(f"Crossover result: Fitness - {child.fitness}")
         return child
 
     # Method for mutating a chromosome
