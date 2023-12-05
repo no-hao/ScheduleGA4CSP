@@ -132,51 +132,35 @@ class Chromosome:
 
     # Method to check if a teacher's preferences are not met
     def not_meeting_preferences(self, teacher_id, course, room, time_slot):
+        logging.debug(f"Checking if preferences are met for teacher {teacher_id}.")
         preferences = self.teacher_preferences[teacher_id]
-        # Checks if various preferences (board, time, days, type) are not met
-        # Returns True if any preference is violated
 
-        # Check board preference
-        if (
+        # Define preference checks as a series of conditions
+        conditions = [
             preferences["Board Pref"] != 0
-            and room["Board Type"] != preferences["Board Pref"]
-        ):
-            return True
-
-        # Check time preference
-        if preferences["Time Pref"] != 0:
-            if (
-                preferences["Time Pref"] == 1
-                and "am" not in time_slot["Description"].lower()
-            ):
-                return True
-            elif preferences["Time Pref"] == 2 and (
-                "pm" not in time_slot["Description"].lower()
-                or "11" in time_slot["Description"]
-            ):
-                return True
-            elif (
-                preferences["Time Pref"] == 3
-                and "evening" not in time_slot["Description"].lower()
-            ):
-                return True
-
-        # Check days preference
-        if preferences["Days Pref"] != 0:
-            if preferences["Days Pref"] == 1 and "MWF" not in time_slot["Description"]:
-                return True
-            elif preferences["Days Pref"] == 2 and "TR" not in time_slot["Description"]:
-                return True
-
-        # Check type preference
-        if (
+            and room["Board Type"] != preferences["Board Pref"],
+            preferences["Time Pref"] == 1
+            and "am" not in time_slot["Description"].lower(),
+            preferences["Time Pref"] == 2
+            and "pm" not in time_slot["Description"].lower()
+            and "11" not in time_slot["Description"],
+            preferences["Time Pref"] == 3
+            and "evening" not in time_slot["Description"].lower(),
+            preferences["Days Pref"] == 1 and "MWF" not in time_slot["Description"],
+            preferences["Days Pref"] == 2 and "TR" not in time_slot["Description"],
             preferences["Type Pref"] != 0
-            and course["Course Type"] != preferences["Type Pref"]
-        ):
-            return True
+            and course["Course Type"] != preferences["Type Pref"],
+        ]
 
-        # If none of the preferences are violated
-        return False
+        # Check if any preference is violated
+        preference_violated = any(conditions)
+
+        if preference_violated:
+            logging.debug(f"Preference violation found for teacher {teacher_id}.")
+        else:
+            logging.debug(f"No preference violation for teacher {teacher_id}.")
+
+        return preference_violated
 
     # Method to improve the schedule represented by the chromosome
     def improve_schedule(self):
@@ -264,53 +248,49 @@ class Chromosome:
 
     # Method to evaluate a teacher's preference score
     def evaluate_teacher_preferences(self, teacher_id, course, room, time_slot):
+        logging.debug(f"Evaluating preferences for teacher {teacher_id}.")
         preferences = self.teacher_preferences[teacher_id]
-        satisfaction_scores = self.teacher_satisfaction[teacher_id]
 
+        # Initialize preference score
         preference_score = 0
-        # Calculate preference score based on various criteria (board, time, days, type)
 
+        # Check and score each preference
         if (
             preferences["Board Pref"] != 0
             and room["Board Type"] == preferences["Board Pref"]
         ):
             preference_score += 1
-
-        if preferences["Time Pref"] != 0:
-            if (
-                preferences["Time Pref"] == 1
-                and "am" in time_slot["Description"].lower()
-            ):
-                preference_score += 1
-            elif preferences["Time Pref"] == 2 and (
-                "pm" in time_slot["Description"].lower()
-                and "11" not in time_slot["Description"]
-            ):
-                preference_score += 1
-            elif (
-                preferences["Time Pref"] == 3
-                and "evening" in time_slot["Description"].lower()
-            ):
-                preference_score += 1
-
-        if preferences["Days Pref"] != 0:
-            if preferences["Days Pref"] == 1 and "MWF" in time_slot["Description"]:
-                preference_score += 1
-            elif preferences["Days Pref"] == 2 and "TR" in time_slot["Description"]:
-                preference_score += 1
-
+        if preferences["Time Pref"] == 1 and "am" in time_slot["Description"].lower():
+            preference_score += 1
+        if (
+            preferences["Time Pref"] == 2
+            and "pm" in time_slot["Description"].lower()
+            and "11" not in time_slot["Description"]
+        ):
+            preference_score += 1
+        if (
+            preferences["Time Pref"] == 3
+            and "evening" in time_slot["Description"].lower()
+        ):
+            preference_score += 1
+        if preferences["Days Pref"] == 1 and "MWF" in time_slot["Description"]:
+            preference_score += 1
+        if preferences["Days Pref"] == 2 and "TR" in time_slot["Description"]:
+            preference_score += 1
         if (
             preferences["Type Pref"] != 0
             and course["Course Type"] == preferences["Type Pref"]
         ):
             preference_score += 1
 
-        satisfaction_score = satisfaction_scores[f"CS{course['Course Section ID']}"]
+        # Add satisfaction score to the preference score
+        satisfaction_score = self.teacher_satisfaction[teacher_id][
+            f"CS{course['Course Section ID']}"
+        ]
+        total_score = preference_score + satisfaction_score
 
-        logging.debug(
-            f"Calculated preference score for teacher {teacher_id}: {preference_score}"
-        )
-        return preference_score + satisfaction_score
+        logging.debug(f"Total preference score for teacher {teacher_id}: {total_score}")
+        return total_score
 
 
 # class GeneticAlgorithm:
