@@ -370,77 +370,92 @@ class GeneticAlgorithm:
     # Method for mutating a chromosome
     def mutate(self, chromosome):
         logging.info("Performing Mutation")
-        idx = random.randint(0, len(chromosome.genes) - 1)
-        gene = chromosome.genes[idx]
+        gene_index = random.randint(0, len(chromosome.genes) - 1)
+        mutated_gene = self._mutate_gene(chromosome.genes[gene_index])
 
-        # Randomly choose to change either the room or the time slot
-        if random.random() < 0.5:
-            new_room = random.choice(self.classrooms)
-            gene = (gene[0], new_room, gene[2], gene[3])
-        else:
-            new_time_slot = random.choice(self.time_slots)
-            gene = (gene[0], gene[1], new_time_slot, gene[3])
-
-        chromosome.genes[idx] = gene
+        chromosome.genes[gene_index] = mutated_gene
         chromosome.evaluate_fitness()
         logging.info("Mutation result: " + str(chromosome))
 
+    def _mutate_gene(self, gene):
+        # Randomly choose to change either the room or the time slot
+        if random.random() < 0.5:
+            new_room = random.choice(self.classrooms)
+            return (gene[0], new_room, gene[2], gene[3])
+        else:
+            new_time_slot = random.choice(self.time_slots)
+            return (gene[0], gene[1], new_time_slot, gene[3])
+
     def compute_summary_statistics(self):
+        logging.debug("Computing summary statistics for the population.")
         stats = {
             "total_courses": len(self.course_sections),
             "distribution": {"MWF": 0, "TR": 0},
             "teacher_preference_adherence": 0,
             "teacher_satisfaction": 0,
         }
+
         for chromosome in self.population:
             for gene in chromosome.genes:
+                # Update course distribution
                 time_slot = gene[2]["Description"]
-                teacher_id = gene[3]
-                stats["distribution"][
+                day_key = (
                     "MWF" if any(d in time_slot for d in ["M", "W", "F"]) else "TR"
-                ] += 1
+                )
+                stats["distribution"][day_key] += 1
+
+                # Update preference adherence and satisfaction
+                teacher_id = gene[3]
                 if not chromosome.not_meeting_preferences(teacher_id, *gene[:3]):
                     stats["teacher_preference_adherence"] += 1
                 stats["teacher_satisfaction"] += self.teacher_satisfaction[teacher_id][
                     f"CS{gene[0]['Course Section ID']}"
                 ]
 
-        stats["teacher_preference_adherence"] /= len(self.population[0].genes)
-        stats["teacher_satisfaction"] /= len(self.population[0].genes)
+        num_genes = len(self.population[0].genes)
+        stats["teacher_preference_adherence"] /= num_genes
+        stats["teacher_satisfaction"] /= num_genes
+
+        logging.info("Summary statistics computed.")
         return stats
 
     def run(self, generations):
+        logging.info(f"Running Genetic Algorithm for {generations} generations.")
         mutation_probability = 0.2  # Probability of mutation
-        all_generation_statistics = []  # List to store statistics for each generation
+        all_generation_statistics = []  # To store statistics for each generation
 
         for generation in range(generations):
-            logging.info(f"Starting Generation: {generation + 1}")
-            new_population = []
-
-            # Keeping the best chromosomes from the current population
-            best_chromosomes = sorted(
-                self.population, key=lambda c: c.fitness, reverse=True
-            )[:2]
-            new_population.extend(best_chromosomes)
-
-            # Generate new chromosomes until the population is replenished
-            while len(new_population) < len(self.population):
-                parents = self.selection()
-                child = self.crossover(parents[0], parents[1])
-                if random.random() < mutation_probability:
-                    self.mutate(child)
-                new_population.append(child)
-
-            # Replace the old population with the new one
-            self.population = sorted(
-                new_population, key=lambda c: c.fitness, reverse=True
-            )
-
-            # Compute and collect summary statistics for this generation
+            logging.info(f"Generation {generation + 1} started.")
+            self._evolve_population(mutation_probability)
             summary_stats = self.compute_summary_statistics()
-            summary_stats["generation"] = generation + 1  # Add generation number
+            summary_stats["generation"] = generation + 1
             all_generation_statistics.append(summary_stats)
+            logging.info(f"Generation {generation + 1} completed.")
 
-            logging.info(f"Completed Generation: {generation + 1}")
+        logging.info("Genetic Algorithm run completed.")
+        return all_generation_statistics
 
-        return all_generation_statistics  # Return the statistics for all generations
+    def _evolve_population(self, mutation_probability):
+        new_population = self._select_and_breed_population()
+        self._mutate_population(new_population, mutation_probability)
+        self.population = sorted(new_population, key=lambda c: c.fitness, reverse=True)
+
+    def _select_and_breed_population(self):
+        new_population = []
+        # Keep the best chromosomes from the current population
+        new_population.extend(
+            sorted(self.population, key=lambda c: c.fitness, reverse=True)[:2]
+        )
+
+        # Generate new chromosomes until the population is replenished
+        while len(new_population) < len(self.population):
+            parent1, parent2 = self.selection()
+            child = self.crossover(parent1, parent2)
+            new_population.append(child)
+
+        return new_population
+
+    def _mutate_population(self, population, mutation_probability):
+        for chromosome in population:
+            if random.random() < mutation_probability:
+                self.mutate(chromosome)
