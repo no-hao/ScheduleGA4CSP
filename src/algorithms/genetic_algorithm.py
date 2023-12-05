@@ -49,42 +49,55 @@ class Chromosome:
 
     # Method to check if the chromosome is valid
     def is_valid(self):
-        # Ensuring that no teacher is assigned more sections than allowed
+        logging.debug("Checking if chromosome is valid.")
+
+        # Count the number of sections assigned to each teacher
         teacher_section_count = {
             teacher_id: 0 for teacher_id in self.teacher_preferences
         }
         for _, _, _, teacher_id in self.genes:
             teacher_section_count[teacher_id] += 1
-            if (
-                teacher_section_count[teacher_id]
-                > self.teacher_preferences[teacher_id]["Max Sections"]
-            ):
-                logging.warning(
-                    f"Chromosome is invalid due to teacher {teacher_id} exceeding max sections."
-                )
-                return False  # Invalid if a teacher exceeds their max section limit
-        return True  # Valid if all teachers are within their section limits
+
+        # Check if any teacher exceeds their max section limit
+        is_valid_chromosome = all(
+            teacher_section_count[teacher_id]
+            <= self.teacher_preferences[teacher_id]["Max Sections"]
+            for teacher_id in teacher_section_count
+        )
+
+        if not is_valid_chromosome:
+            logging.warning(
+                "Chromosome is invalid due to teacher section limit exceedance."
+            )
+        else:
+            logging.debug("Chromosome is valid.")
+
+        return is_valid_chromosome
 
     # Method to initialize the chromosome with random values
-
     def initialize_randomly(self):
         logging.info("Initializing Chromosome Randomly")
-        assigned_slots = set()
-        teacher_assignments = {teacher_id: 0 for teacher_id in self.teacher_preferences}
 
-        # Create a list of all possible room-time slot combinations
+        # Reset genes and assigned slots
+        self.genes = []
+        assigned_slots = set()
+
+        # Shuffle time slots and classrooms to create random combinations
         all_combinations = [
             (room, time_slot)
             for room in self.classrooms
             for time_slot in self.time_slots
         ]
-        random.shuffle(all_combinations)  # Shuffle to ensure a unique distribution
+        random.shuffle(all_combinations)
+
+        # Initialize counters for teacher assignments
+        teacher_assignments = {teacher_id: 0 for teacher_id in self.teacher_preferences}
 
         for section in self.course_sections:
-            # Pop a random combination to ensure unique assignment
+            # Ensure unique assignment by popping a combination
             room, time_slot = all_combinations.pop()
 
-            # Choosing an eligible teacher for the course section
+            # Find eligible teachers who haven't exceeded their max section limit
             eligible_teachers = [
                 tid
                 for tid, count in teacher_assignments.items()
@@ -93,9 +106,9 @@ class Chromosome:
             if not eligible_teachers:
                 eligible_teachers = list(self.teacher_preferences.keys())
 
-            # Consider teacher satisfaction in eligibility
-            teacher_satisfaction_weights = {
-                tid: 1
+            # Calculate weights based on teacher satisfaction
+            teacher_satisfaction_weights = [
+                1
                 / (
                     1
                     + self.teacher_satisfaction[tid][
@@ -103,18 +116,17 @@ class Chromosome:
                     ]
                 )
                 for tid in eligible_teachers
-            }
-            # Choose a teacher based on weighted satisfaction
+            ]
+
+            # Select a teacher randomly based on weighted satisfaction
             teacher_id = random.choices(
-                eligible_teachers,
-                weights=list(teacher_satisfaction_weights.values()),  # Convert to list
-                k=1,
+                eligible_teachers, weights=teacher_satisfaction_weights, k=1
             )[0]
             teacher_assignments[teacher_id] += 1
 
             # Add the chosen combination to the chromosome
-            assigned_slots.add((room["Room Number"], time_slot["Time Slot ID"]))
             self.genes.append((section, room, time_slot, teacher_id))
+            assigned_slots.add((room["Room Number"], time_slot["Time Slot ID"]))
 
         logging.debug("Random initialization of chromosome completed.")
 
@@ -198,13 +210,9 @@ class Chromosome:
             course, room, time_slot, teacher_id = gene
 
             # Balance MWF and TR courses
-            if (
-                "M" in time_slot["Description"]
-                or "W" in time_slot["Description"]
-                or "F" in time_slot["Description"]
-            ):
+            if any(day in time_slot["Description"] for day in ["M", "W", "F"]):
                 mw_count += 1
-            if "T" in time_slot["Description"] or "R" in time_slot["Description"]:
+            if any(day in time_slot["Description"] for day in ["T", "R"]):
                 tr_count += 1
             logging.debug(
                 f"Course {course['Course Section ID']} contributes to MW_count: {mw_count}, TR_count: {tr_count}"
