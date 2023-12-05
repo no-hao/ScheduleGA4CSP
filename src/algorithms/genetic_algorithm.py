@@ -162,21 +162,51 @@ class Chromosome:
 
         return preference_violated
 
-    # Method to improve the schedule represented by the chromosome
-    def improve_schedule(self):
-        # Randomly mutates a gene to potentially improve the chromosome
-        # Method for improving the current chromosome instance
-        logging.debug("Improving chromosome with initial fitness: " + str(self.fitness))
-        mutation_index = random.randint(0, len(self.genes) - 1)
-        gene = self.genes[mutation_index]
-        new_time_slot = random.choice(self.time_slots)
-        self.genes[mutation_index] = (gene[0], gene[1], new_time_slot, gene[3])
+    # Method to evaluate a teacher's preference score
+    def evaluate_teacher_preferences(self, teacher_id, course, room, time_slot):
+        logging.debug(f"Evaluating preferences for teacher {teacher_id}.")
+        preferences = self.teacher_preferences[teacher_id]
 
-        # Re-evaluate fitness after improvement
-        self.evaluate_fitness()
+        # Initialize preference score
+        preference_score = 0
 
-        logging.debug("Post-improvement fitness: " + str(self.fitness))
-        return self
+        # Check and score each preference
+        if (
+            preferences["Board Pref"] != 0
+            and room["Board Type"] == preferences["Board Pref"]
+        ):
+            preference_score += 1
+        if preferences["Time Pref"] == 1 and "am" in time_slot["Description"].lower():
+            preference_score += 1
+        if (
+            preferences["Time Pref"] == 2
+            and "pm" in time_slot["Description"].lower()
+            and "11" not in time_slot["Description"]
+        ):
+            preference_score += 1
+        if (
+            preferences["Time Pref"] == 3
+            and "evening" in time_slot["Description"].lower()
+        ):
+            preference_score += 1
+        if preferences["Days Pref"] == 1 and "MWF" in time_slot["Description"]:
+            preference_score += 1
+        if preferences["Days Pref"] == 2 and "TR" in time_slot["Description"]:
+            preference_score += 1
+        if (
+            preferences["Type Pref"] != 0
+            and course["Course Type"] == preferences["Type Pref"]
+        ):
+            preference_score += 1
+
+        # Add satisfaction score to the preference score
+        satisfaction_score = self.teacher_satisfaction[teacher_id][
+            f"CS{course['Course Section ID']}"
+        ]
+        total_score = preference_score + satisfaction_score
+
+        logging.debug(f"Total preference score for teacher {teacher_id}: {total_score}")
+        return total_score
 
     # Method to evaluate the fitness of the chromosome
     def evaluate_fitness(self):
@@ -246,56 +276,10 @@ class Chromosome:
 
         logging.info("Fitness evaluation completed. Fitness: " + str(self.fitness))
 
-    # Method to evaluate a teacher's preference score
-    def evaluate_teacher_preferences(self, teacher_id, course, room, time_slot):
-        logging.debug(f"Evaluating preferences for teacher {teacher_id}.")
-        preferences = self.teacher_preferences[teacher_id]
-
-        # Initialize preference score
-        preference_score = 0
-
-        # Check and score each preference
-        if (
-            preferences["Board Pref"] != 0
-            and room["Board Type"] == preferences["Board Pref"]
-        ):
-            preference_score += 1
-        if preferences["Time Pref"] == 1 and "am" in time_slot["Description"].lower():
-            preference_score += 1
-        if (
-            preferences["Time Pref"] == 2
-            and "pm" in time_slot["Description"].lower()
-            and "11" not in time_slot["Description"]
-        ):
-            preference_score += 1
-        if (
-            preferences["Time Pref"] == 3
-            and "evening" in time_slot["Description"].lower()
-        ):
-            preference_score += 1
-        if preferences["Days Pref"] == 1 and "MWF" in time_slot["Description"]:
-            preference_score += 1
-        if preferences["Days Pref"] == 2 and "TR" in time_slot["Description"]:
-            preference_score += 1
-        if (
-            preferences["Type Pref"] != 0
-            and course["Course Type"] == preferences["Type Pref"]
-        ):
-            preference_score += 1
-
-        # Add satisfaction score to the preference score
-        satisfaction_score = self.teacher_satisfaction[teacher_id][
-            f"CS{course['Course Section ID']}"
-        ]
-        total_score = preference_score + satisfaction_score
-
-        logging.debug(f"Total preference score for teacher {teacher_id}: {total_score}")
-        return total_score
-
 
 # class GeneticAlgorithm:
 # Description: This class represents the genetic algorithm itself. It includes methods for
-# initializing the algorithm, performing selection, crossover, mutation, and running the
+# initializing the algorithm, performing selection, crossover, mutate, and running the
 # algorithm to find an optimal or satisfactory solution.
 class GeneticAlgorithm:
     # def __init__(
@@ -379,7 +363,7 @@ class GeneticAlgorithm:
         return child
 
     # Method for mutating a chromosome
-    def mutation(self, chromosome):
+    def mutate(self, chromosome):
         logging.info("Performing Mutation")
         idx = random.randint(0, len(chromosome.genes) - 1)
         gene = chromosome.genes[idx]
@@ -439,7 +423,7 @@ class GeneticAlgorithm:
                 parents = self.selection()
                 child = self.crossover(parents[0], parents[1])
                 if random.random() < mutation_probability:
-                    self.mutation(child)
+                    self.mutate(child)
                 new_population.append(child)
 
             # Replace the old population with the new one
