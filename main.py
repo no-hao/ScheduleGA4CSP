@@ -4,7 +4,7 @@ import time
 import logging
 import threading
 from src.utils.data_loader import DataLoader
-from src.utils.visualizer import visualize_room_occupancy
+from src.utils.visualizer import visualize_room_occupancy, plot_metrics
 from src.algorithms.genetic_algorithm import GeneticAlgorithm
 from src.utils.export_to_excel import export_to_excel, export_summary_statistics
 
@@ -52,9 +52,9 @@ def main():
     gen_size = int(input("Enter the generation size: "))
 
     # Static omega values for the Tricriteria model
-    omega1 = 0.33  # Weight for day-of-week balance
-    omega2 = 0.33  # Weight for teaching load balance
-    omega3 = 0.34  # Weight for teacher satisfaction
+    omega1 = 0.3  # Weight for day-of-week balance
+    omega2 = 0.3  # Weight for teaching load balance
+    omega3 = 0.4  # Weight for teacher satisfaction
 
     t = threading.Thread(target=animated_loading)
     t.start()
@@ -100,6 +100,9 @@ def main():
 
     export_summary_statistics(generation_statistics, "data/summary_statistics.xlsx")
     logging.info("Summary statistics exported to data/summary_statistics.xlsx")
+
+    plot_metrics("data/summary_statistics.xlsx")
+    logging.info("Generated plots for genetic algorithm metrics.")
 
     visualize_room_occupancy("data/final_schedule.xlsx")
     logging.info("A visualized schedule was exported to docs/Room_Schedule.pdf")

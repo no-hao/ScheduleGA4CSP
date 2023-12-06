@@ -241,8 +241,12 @@ class Chromosome:
         for _, _, _, teacher_id in self.genes:
             teachers_actual_load[teacher_id] += 1
 
-        load_balance_score = Chromosome.calculate_load_balance(
-            teachers_actual_load, self.teacher_preferences
+        T = len(self.genes)  # Total number of teaching assignments
+        load_balance_score = (
+            Chromosome.calculate_load_balance(
+                teachers_actual_load, self.teacher_preferences
+            )
+            / T
         )
 
         # Update the overall fitness score by incorporating the balance_score
@@ -360,8 +364,9 @@ class GeneticAlgorithm:
             new_time_slot = random.choice(self.time_slots)
             return (gene[0], gene[1], new_time_slot, gene[3])
 
-    def compute_summary_statistics(self):
+    def compute_statistics(self):
         logging.debug("Computing summary statistics for the population.")
+        total_genes = len(self.course_sections) * len(self.population)
         stats = {
             "total_courses": len(self.course_sections),
             "distribution": {"MWF": 0, "TR": 0},
@@ -388,8 +393,10 @@ class GeneticAlgorithm:
                 stats["distribution"][day_key] += 1
 
                 teacher_id = gene[3]
-                if not chromosome.not_meeting_preferences(teacher_id, *gene[:3]):
-                    stats["teacher_preference_adherence"] += 1
+                preference_score = chromosome.evaluate_teacher_preferences(
+                    teacher_id, *gene[:3]
+                )
+                stats["teacher_preference_adherence"] += preference_score
                 stats["teacher_satisfaction"] += self.teacher_satisfaction[teacher_id][
                     f"CS{gene[0]['Course Section ID']}"
                 ]
@@ -403,9 +410,29 @@ class GeneticAlgorithm:
                 if chromosome.not_meeting_preferences(teacher_id, *gene[:3]):
                     stats["preference_violations"] += 1
 
-        num_genes = len(self.population[0].genes)
-        stats["teacher_preference_adherence"] /= num_genes
-        stats["teacher_satisfaction"] /= num_genes
+        # Convert distribution to percentage
+        total_courses = stats["distribution"]["MWF"] + stats["distribution"]["TR"]
+        stats["distribution"]["MWF"] = (
+            stats["distribution"]["MWF"] / total_courses
+        ) * 100
+        stats["distribution"]["TR"] = (
+            stats["distribution"]["TR"] / total_courses
+        ) * 100
+
+        # Convert teacher satisfaction and preference adherence to an average percentage score
+        stats["teacher_satisfaction"] = (
+            stats["teacher_satisfaction"] / total_genes / 5
+        ) * 100
+        stats["teacher_preference_adherence"] = (
+            stats["teacher_preference_adherence"] / total_genes / 5
+        ) * 100
+
+        # Convert preference violations to percentage
+        stats["preference_violations"] = (
+            stats["preference_violations"] / total_genes
+        ) * 100
+
+        # Average fitness and max fitness can be normalized if desired
         stats["average_fitness"] = total_fitness / len(self.population)
         stats["max_fitness"] = max_fitness
 
@@ -420,7 +447,7 @@ class GeneticAlgorithm:
         for generation in range(generations):
             logging.info(f"Generation {generation + 1} started.")
             self._evolve_population(mutation_probability)
-            summary_stats = self.compute_summary_statistics()
+            summary_stats = self.compute_statistics()
             summary_stats["generation"] = generation + 1
             all_generation_statistics.append(summary_stats)
             logging.info(f"Generation {generation + 1} completed.")

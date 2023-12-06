@@ -111,3 +111,64 @@ def visualize_room_occupancy(schedule_file_path):
             plt.close(fig)
 
     print("Final schedule successfully exported to 'docs/Room_Schedules'.")
+
+
+def plot_metrics(summary_statistics_path):
+    """
+    Plot the trends of various metrics from a genetic algorithm over generations,
+    including the distribution of course-section assignments.
+
+    Parameters:
+    summary_statistics_path (str): Path to the summary statistics Excel file.
+    """
+    # Load the summary statistics
+    summary_statistics = pd.read_excel(summary_statistics_path)
+
+    # Extracting relevant columns
+    generations = summary_statistics["generation"]
+    teacher_preference_adherence = summary_statistics["teacher_preference_adherence"]
+    teacher_satisfaction = summary_statistics["teacher_satisfaction"]
+    average_fitness = summary_statistics["average_fitness"]
+    max_fitness = summary_statistics["max_fitness"]
+    preference_violations = summary_statistics["preference_violations"]
+    distribution = summary_statistics["distribution"]
+
+    # Parsing distribution data
+    mwf_percentages = []
+    tr_percentages = []
+    for dist in distribution:
+        parts = dist.split(",")
+        mwf_percent = float(parts[0].split(": ")[1])
+        tr_percent = float(parts[1].split(": ")[1])
+        mwf_percentages.append(mwf_percent)
+        tr_percentages.append(tr_percent)
+
+    # Plotting the trends over generations
+    plt.figure(figsize=(18, 12))
+
+    metrics = {
+        "Teacher Preference Adherence": teacher_preference_adherence,
+        "Teacher Satisfaction": teacher_satisfaction,
+        "Average Fitness": average_fitness,
+        "Max Fitness": max_fitness,
+        "Preference Violations": preference_violations,
+    }
+
+    for i, (title, values) in enumerate(metrics.items(), 1):
+        plt.subplot(3, 2, i)
+        plt.plot(generations, values, marker="o")
+        plt.title(title)
+        plt.xlabel("Generation")
+        plt.ylabel(title)
+
+    # Plotting distribution data
+    plt.subplot(3, 2, 6)
+    plt.plot(generations, mwf_percentages, marker="o", label="MWF")
+    plt.plot(generations, tr_percentages, marker="o", label="TR")
+    plt.title("Course-Section Assignment Distribution")
+    plt.xlabel("Generation")
+    plt.ylabel("Percentage")
+    plt.legend()
+
+    plt.tight_layout()
+    plt.show()
