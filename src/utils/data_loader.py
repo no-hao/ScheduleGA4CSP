@@ -45,7 +45,7 @@ class DataLoader:
         if sheet_name == "Time Slots":
             # Apply a custom parser to transform time slot descriptions.
             df["Time Slot Codes"] = df["Description"].apply(
-                TimeSlotParser.parse_time_slot
+                TimeSlotParser.parse_time_slots
             )
 
         return df

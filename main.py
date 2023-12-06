@@ -14,17 +14,11 @@ stop_animation = False
 
 def setup_logging():
     log_file_path = "genetic_algorithm.log"
-    max_log_size = 5 * 1024 * 1024  # 5 MB, for example
+    max_log_size = 5 * 1024 * 1024  # 5 MB
 
-    # Check if the log file exists and its size
     if os.path.exists(log_file_path) and os.path.getsize(log_file_path) > max_log_size:
-        # Option 1: Delete the existing file
         os.remove(log_file_path)
 
-        # Option 2: Rename/Archive the existing file
-        # os.rename(log_file_path, log_file_path + ".old")
-
-    # Set up logging as before
     logging.basicConfig(
         filename=log_file_path,
         level=logging.DEBUG,
@@ -34,21 +28,8 @@ def setup_logging():
 
 def animated_loading():
     global stop_animation
-    animation_width = 28  # Width of the sliding bar animation
-    animation_chars = [
-        "■",
-        "□",
-        "▢",
-        "▣",
-        "▤",
-        "▥",
-        "▦",
-        "▧",
-        "▨",
-        "▩",
-        "▪",
-        "▫",
-    ]  # Unicode block characters
+    animation_width = 28
+    animation_chars = ["■", "□", "▢", "▣", "▤", "▥", "▦", "▧", "▨", "▩", "▪", "▫"]
     while not stop_animation:
         for i in range(animation_width):
             bar = "".join(animation_chars[i % len(animation_chars)] * (i + 1))
@@ -58,9 +39,7 @@ def animated_loading():
 
 
 def clear_loading_line():
-    sys.stdout.write(
-        "\r\033[K" + " " * 50 + "\r\033[K"
-    )  # Clear the line and reset cursor position
+    sys.stdout.write("\r\033[K" + " " * 50 + "\r\033[K")
     sys.stdout.flush()
 
 
@@ -68,14 +47,18 @@ def main():
     global stop_animation
     setup_logging()
     logging.info("Application Started")
+
     pop_size = int(input("Enter the population size: "))
     gen_size = int(input("Enter the generation size: "))
 
-    # Start loading animation
+    # Static omega values for the Tricriteria model
+    omega1 = 0.33  # Weight for day-of-week balance
+    omega2 = 0.33  # Weight for teaching load balance
+    omega3 = 0.34  # Weight for teacher satisfaction
+
     t = threading.Thread(target=animated_loading)
     t.start()
 
-    # Data loading and processing
     data_loader = DataLoader("Simulated_Data.xlsx")
     course_sections_df = data_loader.load_sheet("(I) Simulated Course Sections")
     classrooms_df = data_loader.load_sheet("(J) Classrooms")
@@ -83,19 +66,16 @@ def main():
     teacher_preferences_df = data_loader.load_sheet("Teacher Preference")
     teacher_satisfaction_df = data_loader.load_sheet("Teacher Satisfaction")
 
-    # Convert DataFrames to the required format
     course_sections = course_sections_df.to_dict("records")
     classrooms = classrooms_df.to_dict("records")
     time_slots = time_slots_df.to_dict("records")
     teacher_preferences = teacher_preferences_df.set_index("Teacher ID").T.to_dict()
     teacher_satisfaction = teacher_satisfaction_df.set_index("Teacher ID").T.to_dict()
 
-    # Create a dictionary for time slot details
     time_slot_details = {
         slot["Time Slot ID"]: slot["Description"] for slot in time_slots
     }
 
-    # Initialize the genetic algorithm
     ga = GeneticAlgorithm(
         course_sections,
         classrooms,
@@ -103,28 +83,24 @@ def main():
         teacher_preferences,
         teacher_satisfaction,
         population_size=pop_size,
+        omega1=omega1,
+        omega2=omega2,
+        omega3=omega3,
     )
 
-    # Running the genetic algorithm and getting statistics for each generation
     generation_statistics = ga.run(generations=gen_size)
 
-    # Stop the animation
     stop_animation = True
     t.join()
-
-    # Clear the loading line
     clear_loading_line()
 
-    # Export the best chromosome to an Excel file
-    best_chromosome = ga.population[0]  # Assuming this is your best chromosome
+    best_chromosome = ga.population[0]
     final_schedule_file = "data/final_schedule.xlsx"
     export_to_excel(best_chromosome, time_slot_details, final_schedule_file)
 
-    # Export summary statistics to an Excel file
     export_summary_statistics(generation_statistics, "data/summary_statistics.xlsx")
     logging.info("Summary statistics exported to data/summary_statistics.xlsx")
 
-    # Visualize the schedule
     visualize_room_occupancy("data/final_schedule.xlsx")
     logging.info("A visualized schedule was exported to docs/Room_Schedule.pdf")
 

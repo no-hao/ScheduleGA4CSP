@@ -2,25 +2,18 @@ import random
 import logging
 
 
-# class Chromosome:
-# Description: This class represents a chromosome in the context of the genetic algorithm.
-# It encapsulates all the properties and behaviors specific to a chromosome, such as
-# initializing with given parameters, representing a solution, and calculating fitness.
 class Chromosome:
-    # def __init__(
-    # Description: This method is responsible for initializing a new instance of the Chromosome class.
-    # It takes course sections, classrooms, time slots, teacher preferences, and teacher satisfaction
-    # as parameters to set up the chromosome.
     def __init__(
         self,
+        ga,  # GeneticAlgorithm instance
         course_sections,  # A list of course sections
         classrooms,  # A list of classrooms
         time_slots,  # A list of available time slots
         teacher_preferences,  # A dictionary of teacher preferences
         teacher_satisfaction,  # A dictionary of teacher satisfaction scores
     ):
-        # Initialization of class attributes
         logging.debug("Initializing new Chromosome instance.")
+        self.ga = ga
         self.course_sections = course_sections
         self.classrooms = classrooms
         self.time_slots = time_slots
@@ -29,12 +22,10 @@ class Chromosome:
         self.genes = []  # List to store genes; each gene represents a course scheduling decision
         self.fitness = 0  # Fitness score of the chromosome
 
-        # Initialize and evaluate the chromosome
         self.initialize_randomly()
         self.evaluate_fitness()
         logging.debug("Chromosome initialized with random genes.")
 
-    # String representation of the Chromosome object
     def __str__(self):
         output = [f"Chromosome (Fitness: {self.fitness}):\n"]
         output.append("Course ID | Room | Time Slot | Teacher ID")
@@ -47,18 +38,14 @@ class Chromosome:
             output.append(f"{course_id:^10}|{room:^6}|{time_slot:^10}|{teacher_id:^11}")
         return "\n".join(output)
 
-    # Method to check if the chromosome is valid
     def is_valid(self):
         logging.debug("Checking if chromosome is valid.")
-
-        # Count the number of sections assigned to each teacher
         teacher_section_count = {
             teacher_id: 0 for teacher_id in self.teacher_preferences
         }
         for _, _, _, teacher_id in self.genes:
             teacher_section_count[teacher_id] += 1
 
-        # Check if any teacher exceeds their max section limit
         is_valid_chromosome = all(
             teacher_section_count[teacher_id]
             <= self.teacher_preferences[teacher_id]["Max Sections"]
@@ -74,15 +61,11 @@ class Chromosome:
 
         return is_valid_chromosome
 
-    # Method to initialize the chromosome with random values
     def initialize_randomly(self):
         logging.info("Initializing Chromosome Randomly")
-
-        # Reset genes and assigned slots
         self.genes = []
         assigned_slots = set()
 
-        # Shuffle time slots and classrooms to create random combinations
         all_combinations = [
             (room, time_slot)
             for room in self.classrooms
@@ -90,14 +73,11 @@ class Chromosome:
         ]
         random.shuffle(all_combinations)
 
-        # Initialize counters for teacher assignments
         teacher_assignments = {teacher_id: 0 for teacher_id in self.teacher_preferences}
 
         for section in self.course_sections:
-            # Ensure unique assignment by popping a combination
             room, time_slot = all_combinations.pop()
 
-            # Find eligible teachers who haven't exceeded their max section limit
             eligible_teachers = [
                 tid
                 for tid, count in teacher_assignments.items()
@@ -106,7 +86,6 @@ class Chromosome:
             if not eligible_teachers:
                 eligible_teachers = list(self.teacher_preferences.keys())
 
-            # Calculate weights based on teacher satisfaction
             teacher_satisfaction_weights = [
                 1
                 / (
@@ -118,24 +97,31 @@ class Chromosome:
                 for tid in eligible_teachers
             ]
 
-            # Select a teacher randomly based on weighted satisfaction
             teacher_id = random.choices(
                 eligible_teachers, weights=teacher_satisfaction_weights, k=1
             )[0]
             teacher_assignments[teacher_id] += 1
 
-            # Add the chosen combination to the chromosome
             self.genes.append((section, room, time_slot, teacher_id))
             assigned_slots.add((room["Room Number"], time_slot["Time Slot ID"]))
 
         logging.debug("Random initialization of chromosome completed.")
 
-    # Method to check if a teacher's preferences are not met
+    @staticmethod
+    def calculate_load_balance(teachers_actual_load, teacher_preferences):
+        total_deviation = 0
+        for teacher_id, actual_load in teachers_actual_load.items():
+            min_sections = teacher_preferences[teacher_id]["Min Sections"]
+            max_sections = teacher_preferences[teacher_id]["Max Sections"]
+            ideal_load = (min_sections + max_sections) / 2
+            deviation = abs(actual_load - ideal_load)
+            total_deviation += deviation
+        return total_deviation
+
     def not_meeting_preferences(self, teacher_id, course, room, time_slot):
         logging.debug(f"Checking if preferences are met for teacher {teacher_id}.")
         preferences = self.teacher_preferences[teacher_id]
 
-        # Define preference checks as a series of conditions
         conditions = [
             preferences["Board Pref"] != 0
             and room["Board Type"] != preferences["Board Pref"],
@@ -152,7 +138,6 @@ class Chromosome:
             and course["Course Type"] != preferences["Type Pref"],
         ]
 
-        # Check if any preference is violated
         preference_violated = any(conditions)
 
         if preference_violated:
@@ -162,15 +147,12 @@ class Chromosome:
 
         return preference_violated
 
-    # Method to evaluate a teacher's preference score
     def evaluate_teacher_preferences(self, teacher_id, course, room, time_slot):
         logging.debug(f"Evaluating preferences for teacher {teacher_id}.")
         preferences = self.teacher_preferences[teacher_id]
 
-        # Initialize preference score
         preference_score = 0
 
-        # Check and score each preference
         if (
             preferences["Board Pref"] != 0
             and room["Board Type"] == preferences["Board Pref"]
@@ -199,7 +181,6 @@ class Chromosome:
         ):
             preference_score += 1
 
-        # Add satisfaction score to the preference score
         satisfaction_score = self.teacher_satisfaction[teacher_id][
             f"CS{course['Course Section ID']}"
         ]
@@ -208,83 +189,73 @@ class Chromosome:
         logging.debug(f"Total preference score for teacher {teacher_id}: {total_score}")
         return total_score
 
-    # Method to evaluate the fitness of the chromosome
     def evaluate_fitness(self):
         logging.debug("Starting fitness evaluation.")
         self.fitness = 0
         mw_count, tr_count = 0, 0
         course_assignments = set()
 
-        preference_weight = 5  # Adjusted weight for teacher preferences
-        satisfaction_weight = 2  # Adjusted weight for teacher satisfaction
-        deviation_penalty = 30  # Increased penalty for deviations from preferences
-        balance_penalty_weight = 10  # Adjusted weight for imbalance penalty
+        balance_score = 0  # Initialize balance score
+        load_balance_score = 0
+        satisfaction_score = 0
 
         for gene in self.genes:
             course, room, time_slot, teacher_id = gene
 
-            # Balance MWF and TR courses
             if any(day in time_slot["Description"] for day in ["M", "W", "F"]):
                 mw_count += 1
             if any(day in time_slot["Description"] for day in ["T", "R"]):
                 tr_count += 1
-            logging.debug(
-                f"Course {course['Course Section ID']} contributes to MW_count: {mw_count}, TR_count: {tr_count}"
-            )
 
-            # Check for duplicate course assignments
-            course_id = course["Course Section ID"]
-            if course_id in course_assignments:
-                self.fitness -= 5  # Penalty for duplicate assignment
+            if course["Course Section ID"] in course_assignments:
+                self.fitness -= 5
                 logging.warning(
-                    f"Duplicate Assignment Detected for Course {course_id}, applying penalty"
+                    f"Duplicate Assignment Detected for Course {course['Course Section ID']}, applying penalty"
                 )
             else:
-                course_assignments.add(course_id)
+                course_assignments.add(course["Course Section ID"])
 
-            # Evaluate teacher preferences
             preference_score = self.evaluate_teacher_preferences(
                 teacher_id, course, room, time_slot
             )
-            logging.debug(
-                f"Teacher preference score for course {course_id}: {preference_score}"
-            )
-
-            # Retrieve teacher satisfaction score
             satisfaction_score = self.teacher_satisfaction[teacher_id][
                 f"CS{course['Course Section ID']}"
             ]
-            logging.debug(
-                f"Teacher satisfaction score for course {course_id}: {satisfaction_score}"
-            )
 
-            # Apply weighted scoring for preferences and satisfaction
-            self.fitness += preference_score * preference_weight
-            self.fitness += satisfaction_score * satisfaction_weight
+            self.fitness += preference_score * self.ga.preference_weight
+            self.fitness += satisfaction_score * self.ga.satisfaction_weight
 
-            # Penalize deviations from preferences
             if self.not_meeting_preferences(teacher_id, course, room, time_slot):
-                self.fitness -= deviation_penalty
-                logging.debug(f"Deviation penalty applied for course {course_id}")
+                self.fitness -= self.ga.deviation_penalty
 
-        # Calculate and apply the penalty for imbalance between MWF and TTh courses
+        # Calculate the balance score based on the counts of MWF and TR courses
         balance_delta = abs(mw_count - tr_count)
-        self.fitness -= balance_delta * balance_penalty_weight
-        logging.debug(
-            f"Balance penalty applied: MW_count - {mw_count}, TR_count - {tr_count}, Delta - {balance_delta}"
+        balance_score = 1 / (1 + balance_delta)  # Example scoring function
+
+        # Apply the balance penalty weight
+        self.fitness -= balance_delta * self.ga.balance_penalty_weight
+
+        teachers_actual_load = {
+            teacher_id: 0 for teacher_id in self.teacher_preferences
+        }
+        for _, _, _, teacher_id in self.genes:
+            teachers_actual_load[teacher_id] += 1
+
+        load_balance_score = Chromosome.calculate_load_balance(
+            teachers_actual_load, self.teacher_preferences
+        )
+
+        # Update the overall fitness score by incorporating the balance_score
+        self.fitness = (
+            self.ga.omega1 * balance_score
+            + self.ga.omega2 * load_balance_score
+            + self.ga.omega3 * satisfaction_score
         )
 
         logging.info("Fitness evaluation completed. Fitness: " + str(self.fitness))
 
 
-# class GeneticAlgorithm:
-# Description: This class represents the genetic algorithm itself. It includes methods for
-# initializing the algorithm, performing selection, crossover, mutate, and running the
-# algorithm to find an optimal or satisfactory solution.
 class GeneticAlgorithm:
-    # def __init__(
-    # Description: This method is responsible for initializing a new instance of the GeneticAlgorithm class.
-    # It sets up the algorithm with necessary parameters such as course sections, classrooms, and time slots.
     def __init__(
         self,
         course_sections,  # A list of course sections
@@ -293,21 +264,33 @@ class GeneticAlgorithm:
         teacher_preferences,  # A dictionary of teacher preferences
         teacher_satisfaction,  # A dictionary of teacher satisfaction scores
         population_size,  # The size of the population for the genetic algorithm
+        omega1,  # Weight for day-of-week balance
+        omega2,  # Weight for teaching load balance
+        omega3,  # Weight for teacher satisfaction
     ):
         logging.info(
             "Initializing Genetic Algorithm with population size: "
             + str(population_size)
         )
-        # Initialization of class attributes
         self.course_sections = course_sections
         self.classrooms = classrooms
         self.time_slots = time_slots
         self.teacher_preferences = teacher_preferences
         self.teacher_satisfaction = teacher_satisfaction
+        self.population_size = population_size
+        self.omega1 = omega1
+        self.omega2 = omega2
+        self.omega3 = omega3
 
-        # Creating an initial population of chromosomes
+        # Additional weights for the fitness function
+        self.preference_weight = 5
+        self.satisfaction_weight = 2
+        self.deviation_penalty = 30
+        self.balance_penalty_weight = 10
+
         self.population = [
             Chromosome(
+                self,
                 course_sections,
                 classrooms,
                 time_slots,
@@ -318,18 +301,15 @@ class GeneticAlgorithm:
         ]
         logging.debug("Genetic Algorithm initialized.")
 
-    # Method for selecting parents from the population
     def selection(self):
         logging.debug("Selecting parents for crossover.")
         tournament = random.sample(self.population, 7)  # Tournament selection
-        return sorted(tournament, key=lambda c: c.fitness, reverse=True)[
-            :2
-        ]  # Select top 2
+        return sorted(tournament, key=lambda c: c.fitness, reverse=True)[:2]
 
-    # Method for crossing over two parent chromosomes to create a child
     def crossover(self, parent1, parent2):
         logging.debug("Starting crossover for selected parents.")
         child = Chromosome(
+            self,
             self.course_sections,
             self.classrooms,
             self.time_slots,
@@ -337,15 +317,12 @@ class GeneticAlgorithm:
             self.teacher_satisfaction,
         )
 
-        # Initialize child's genes and a set to track assigned slots
         child.genes = []
         assigned_slots = set()
 
         for gene1, gene2 in zip(parent1.genes, parent2.genes):
-            # Choose a gene from either parent based on a random choice
             chosen_gene = gene1 if random.random() < 0.5 else gene2
 
-            # Check for double-booking and select new room and time slot if necessary
             while (
                 chosen_gene[1]["Room Number"],
                 chosen_gene[2]["Time Slot ID"],
@@ -357,7 +334,6 @@ class GeneticAlgorithm:
                     chosen_gene[3],
                 )
 
-            # Add the chosen gene to the child and update the assigned slots
             child.genes.append(chosen_gene)
             assigned_slots.add(
                 (chosen_gene[1]["Room Number"], chosen_gene[2]["Time Slot ID"])
@@ -367,7 +343,6 @@ class GeneticAlgorithm:
         logging.debug(f"Crossover result: Fitness - {child.fitness}")
         return child
 
-    # Method for mutating a chromosome
     def mutate(self, chromosome):
         logging.info("Performing Mutation")
         gene_index = random.randint(0, len(chromosome.genes) - 1)
@@ -378,7 +353,6 @@ class GeneticAlgorithm:
         logging.info("Mutation result: " + str(chromosome))
 
     def _mutate_gene(self, gene):
-        # Randomly choose to change either the room or the time slot
         if random.random() < 0.5:
             new_room = random.choice(self.classrooms)
             return (gene[0], new_room, gene[2], gene[3])
@@ -407,14 +381,12 @@ class GeneticAlgorithm:
 
             duplicate_courses = set()
             for gene in chromosome.genes:
-                # Update course distribution
                 time_slot = gene[2]["Description"]
                 day_key = (
                     "MWF" if any(d in time_slot for d in ["M", "W", "F"]) else "TR"
                 )
                 stats["distribution"][day_key] += 1
 
-                # Update preference adherence and satisfaction
                 teacher_id = gene[3]
                 if not chromosome.not_meeting_preferences(teacher_id, *gene[:3]):
                     stats["teacher_preference_adherence"] += 1
@@ -422,14 +394,12 @@ class GeneticAlgorithm:
                     f"CS{gene[0]['Course Section ID']}"
                 ]
 
-                # Check for duplicate course assignments
                 course_id = gene[0]["Course Section ID"]
                 if course_id in duplicate_courses:
                     stats["course_assignment_duplicates"] += 1
                 else:
                     duplicate_courses.add(course_id)
 
-                # Check for preference violations
                 if chromosome.not_meeting_preferences(teacher_id, *gene[:3]):
                     stats["preference_violations"] += 1
 
@@ -444,8 +414,8 @@ class GeneticAlgorithm:
 
     def run(self, generations):
         logging.info(f"Running Genetic Algorithm for {generations} generations.")
-        mutation_probability = 0.2  # Probability of mutation
-        all_generation_statistics = []  # To store statistics for each generation
+        mutation_probability = 0.2
+        all_generation_statistics = []
 
         for generation in range(generations):
             logging.info(f"Generation {generation + 1} started.")
@@ -465,12 +435,10 @@ class GeneticAlgorithm:
 
     def _select_and_breed_population(self):
         new_population = []
-        # Keep the best chromosomes from the current population
         new_population.extend(
             sorted(self.population, key=lambda c: c.fitness, reverse=True)[:2]
         )
 
-        # Generate new chromosomes until the population is replenished
         while len(new_population) < len(self.population):
             parent1, parent2 = self.selection()
             child = self.crossover(parent1, parent2)
